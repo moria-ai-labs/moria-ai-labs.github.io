@@ -12,3 +12,5 @@ This is a sample GitHub Pages site powered by Jekyll.
 - ✉️ [Contact me](mailto:your@email.com)
 
 ![My Project Screenshot](assets/networks_schema.png)
+
+<iframe src="/assets/assets_network_Version2.html" width="100%" height="600" frameborder="0"></iframe>
