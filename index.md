@@ -10,6 +10,24 @@ Trust is the data practitioner's most important asset. Moria’s Data Readiness 
 
 ![My Project Screenshot](assets/networks_schema.png)
 
+<a href="https://your-link.com" class="my-button">Visit Open-Source Project</a>
+
+<style>
+.my-button {
+  display: inline-block;
+  padding: 0.6em 1.2em;
+  background: #007acc;
+  color: white !important;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.my-button:hover {
+  background: #005fa3;
+}
+</style>
+
 ## What is Data Readiness?
 
 Data Readiness is an outcome-centered evaluation of the journey from insights to data sources. 
