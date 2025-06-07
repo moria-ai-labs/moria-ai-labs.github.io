@@ -50,6 +50,8 @@ Data Readiness is an outcome-centered evaluation of the journey from insights to
 
 In most cases, data quality is table/asset centered. Current data quality solutions provide assessments of the asset data quality without considering how data sources connect with each other. More importantly, data quality alone does not answer the question: "how might we understand [insert business performance outcome]?" 
 
+## Our solution at a glance
+
 <div style="display:flex;gap:1em;flex-wrap:wrap;">
   <div class="my-card" style="flex:1;">
     <h3>Focus on relationships</h3>
@@ -62,6 +64,8 @@ In most cases, data quality is table/asset centered. Current data quality soluti
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
 </div>
+
+## 
 
 <div style="display:flex;gap:1em;flex-wrap:wrap;">
   <div class="my-card" style="flex:1;">
