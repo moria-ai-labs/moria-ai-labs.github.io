@@ -47,6 +47,15 @@ Trust is the data practitioner's most important asset. Moria’s Data Readiness 
 <br><br>
 <br><br>
 
+## In a nutshell
+In a typical data requirement session, we start the data journey at the (often aspirational) insight derivable and connect with the (often harsh) data reality. 
+Finding the best strategy to connect the dots goes beyond just data quality; Data Readiness focuses on relationships between data domains and helps the data practitioner (CxO, decision makers, data engineers, analysts) to create a constructive dialog and define the best outcome-oriented strategy to solve the problem.
+
+It is an old problem, attacked from a different perspective: the "brain" of the engine is based on graph theory (1700s tech) to solve for a need to build the infrastructure for a 2030 future. 
+
+<br><br>
+<br><br>
+
 ## What is Data Readiness?
 
 Data Readiness is an outcome-centered evaluation of the journey from insights to data sources. 
