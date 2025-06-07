@@ -2,4 +2,15 @@ title: Moria AI Lab - Data Readiness Engine
 description: Beyond Data Readiness - The Moria AI Lab's Engine for Data-Driven Decision Making
 theme: minima
 
+author:
+  name: Your Name
+  email: your@email.com
+
+minima:
+  social_links:
+    - { platform: github,         user_url: "https://github.com/yourusername" }
+    - { platform: linkedin,       user_url: "https://linkedin.com/in/yourusername" }
+    - { platform: twitter,        user_url: "https://twitter.com/yourusername" }
+    - { platform: facebook,       user_url: "https://facebook.com/yourusername" }
+    - { platform: instagram,      user_url: "https://instagram.com/yourusername" }
 
