@@ -52,13 +52,13 @@ In most cases, data quality is table/asset centered. Current data quality soluti
 
 <div style="display:flex;gap:1em;flex-wrap:wrap;">
   <div class="my-card" style="flex:1;">
-    <h3>Card 1</h3>
-    <p>This is the first card.</p>
+    <h3>Focus on relationships</h3>
+    <p>Data quality alone is half of the story. Meaningful and scalable connections drive data success</p>
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
   <div class="my-card" style="flex:1;">
-    <h3>Card 2</h3>
-    <p>This is the second card.</p>
+    <h3>Start with the outcome</h3>
+    <p>... and solve the problem. You don't need 100% data quality on all data assets. You need the right data connected to the right insights </p>
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
 </div>
