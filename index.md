@@ -69,13 +69,13 @@ In most cases, data quality is table/asset centered. Current data quality soluti
 
 <div style="display:flex;gap:1em;flex-wrap:wrap;">
   <div class="my-card" style="flex:1;">
-    <h3>Focus on relationships</h3>
-    <p>Data quality alone is half of the story. Meaningful and scalable connections drive data success</p>
+    <h3>Identify most critical assest</h3>
+    <p>You want to be strategical in your data quality journey. Data Readiness helps you navigate and prioritize for measureable outcomes</p>
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
   <div class="my-card" style="flex:1;">
-    <h3>Start with the outcome</h3>
-    <p>... and solve the problem. You don't need 100% data quality on all data assets. You need the right data connected to the right insights </p>
+    <h3>Enhanced data governance</h3>
+    <p>The power of data relies on well governed assets. Dara Readiness support data governance journeys and supports adoption </p>
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
 </div>
