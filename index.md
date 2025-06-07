@@ -73,7 +73,7 @@ In most cases, data quality is table/asset centered. Current data quality soluti
   </div>
 </div>
 
-## 
+<br><br>
 
 <div style="display:flex;gap:1em;flex-wrap:wrap;">
   <div class="my-card" style="flex:1;">
