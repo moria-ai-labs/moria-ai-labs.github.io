@@ -7,7 +7,7 @@ title: Moria AI Lab - Data Readiness Engine
 
 This is a sample GitHub Pages site powered by Jekyll.
 
-- 🚀 Check out my [projects](./projects)!
+- 🚀 Check out our [Data Readiness Engine](./projects)!
 - 📄 Read the [documentation](./docs)!
 - ✉️ [Contact me](mailto:your@email.com)
 
