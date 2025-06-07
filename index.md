@@ -29,7 +29,7 @@ Trust is the data practitioner's most important asset. Moria’s Data Readiness 
 .my-card {
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   border-radius: 8px;
-  background: #fff;
+  background: #FFCDB2;
   padding: 1.5em;
   margin: 1em 0;
   border: 1px solid #eaeaea;
