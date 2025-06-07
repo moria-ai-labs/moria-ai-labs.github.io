@@ -5,12 +5,12 @@ theme: minima
 author:
   name: Hugo Contreras-Palacios
   email: hugocontrerasp@gmail.com
-
-social_links:
-  - title: Minima Theme repository at GitHub
-    icon: github
-    url: "https://github.com/jekyll/minima"
-  - title: Jekyll at X (formerly Twitter)
-    icon: x-twitter
-    url: "https://x.com/jekyllrb"
+minima:
+  social_links:
+    - title: Minima Theme repository at GitHub
+      icon: github
+      url: "https://github.com/jekyll/minima"
+    - title: Jekyll at X (formerly Twitter)
+      icon: x-twitter
+      url: "https://x.com/jekyllrb"
 
