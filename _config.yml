@@ -1,12 +1,4 @@
 title: Moria AI Lab - Data Readiness Engine 
 description: Beyond Data Readiness: The Moria AI Lab's Engine for Data-Driven Decision Making
-author: Moria AI Lab
-url: https://morialab.com
-baseurl: ""
-# Social Media Links
-social:
-  - icon: fab fa-twitter
-    link: https://twitter.com/morialab
-  - icon: fab fa-github
-    link:
+
 theme: minima
