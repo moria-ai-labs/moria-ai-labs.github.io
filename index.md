@@ -5,12 +5,12 @@ title: Moria AI Lab - Data Readiness Engine
 
 ![Site Logo](/assets/images/moria_logo.png)
 
-# Moria AI Lab - Data Readiness Engine
+# Moria AI Labs - Data Readiness Engine
 
 Trust is the data practitioner's most important asset. Moria’s Data Readiness Engine provides an intuitive way to understand the gap between source data and the business most actionable insights. Data readiness goes beyond just data quality. It’s about understanding your problem and leverage your data to solve it and demonstrate real impact
 
 
-![My Project Screenshot](assets/networks_schema.png)
+![Schema Network](assets/networks_schema.png)
 
 <a href="https://github.com/moria-ai-labs/data_readiness" class="my-button">Visit Open-Source Project</a>
 
@@ -44,6 +44,9 @@ Trust is the data practitioner's most important asset. Moria’s Data Readiness 
 }
 </style>
 
+<br><br>
+<br><br>
+
 ## What is Data Readiness?
 
 Data Readiness is an outcome-centered evaluation of the journey from insights to data sources. 
@@ -51,6 +54,9 @@ Data Readiness is an outcome-centered evaluation of the journey from insights to
 ## What's the difference between data quality and Data Readiness?
 
 In most cases, data quality is table/asset centered. Current data quality solutions provide assessments of the asset data quality without considering how data sources connect with each other. More importantly, data quality alone does not answer the question: "how might we understand [insert business performance outcome]?" 
+
+<br><br>
+<br><br>
 
 ## Our solution at a glance
 
@@ -81,6 +87,9 @@ In most cases, data quality is table/asset centered. Current data quality soluti
     <a href="https://github.com/" class="my-button">Learn More</a>
   </div>
 </div>
+
+<br><br>
+<br><br>
 
 ## Find more (WIP)
 
