@@ -9,7 +9,7 @@ title: Moria AI Lab - Data Readiness Engine
 
 <!-- Small logo below the title -->
 <div style="text-align:center; margin: 1.5em 0;">
-  <img src="/assets/images/mal_data_readiness_engine_logo.jpg" alt="Moria AI Labs Small Logo" style="width:90px; max-width:20vw; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+  <img src="/assets/images/mal_data_readiness_engine_logo.jpg" alt="Moria AI Labs Small Logo" style="width:180px; max-width:20vw; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 </div>
 
 Trust is the data practitioner's most important asset. Moria’s Data Readiness Engine provides an intuitive way to understand the gap between source data and the business most actionable insights. Data readiness goes beyond just data quality. It’s about understanding your problem and leverage your data to solve it and demonstrate real impact
