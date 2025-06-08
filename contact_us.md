@@ -12,13 +12,13 @@ We'd love to hear from you! Whether you have feedback, questions, suggestions, o
 
 ## 📧 Email
 
-Feel free to email us at: [your@email.com](mailto:your@email.com)
+Feel free to email us at: [moria.ai.labs@gmail.com](mailto:moria.ai.labs@gmail.com)
 
 ---
 
 ## 🐙 GitHub Issues
 
-For feature requests, bug reports, or technical questions, please [open an issue](https://github.com/your-username/your-repo/issues) on our GitHub repository.
+For feature requests, bug reports, or technical questions, please [open an issue](https://github.com/moria-ai-labs/data_readiness/issues) on our GitHub repository.
 
 ## UX Survey
 We are always listening and learning from our users. Please use the [general UX survey](https://forms.gle/Ftgp5QyiNyYA4cM26) and share with us your brilliant ideas.  
@@ -28,18 +28,11 @@ We are always listening and learning from our users. Please use the [general UX 
 ## 💬 Social Media
 
 - [Twitter](https://twitter.com/yourhandle)
-- [LinkedIn](https://www.linkedin.com/in/yourprofile)
+- [LinkedIn](https://www.linkedin.com/in/hugocontrerasp/)
 - [Other Platform](https://yourplatform.com)
 
 ---
 
-## 📬 Mailing Address
 
-*Your Organization or Project Name*  
-123 Main Street  
-Your City, State, ZIP  
-Country
-
----
 
 We aim to respond to all inquiries within 2-3 business days. Thank you for your interest in our project!
