@@ -14,18 +14,20 @@
       {id: 1, label: "About Us", url: "/about_us/"},
       {id: 2, label: "Docs", url: "/docs/"},
       {id: 3, label: "Usage", url: "/docs/usage/"},
-      {id: 4, label: "Contact Us", url: "/contact/"}
+      {id: 4, label: "Contact Us", url: "/contact/"},
+      {id: 5, label: "User Stories", url: "/user_stories/"}
     ];
     const edges = [
       [0, 1],
       [0, 2],
       [2, 3],
-      [0, 4]
+      [0, 4],
+      [0, 5]
     ];
 
     // Simple layout (for more complex, use force-directed layout externally)
-    const x = [0, 1, 1, 2, -1];
-    const y = [0, 1, -1, -1, 0];
+    const x = [0, 1, 1, 2, -1, 1];
+    const y = [0, 1, -1, -1, 0, 0];
 
     // Build edge traces
     const edgeTraces = [];
