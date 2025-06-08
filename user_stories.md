@@ -27,7 +27,7 @@ Below are four user stories. Click any panel to view the image in a larger size.
 
   <a href="/assets/user_stories/MAL_DRE_US1d.png" target="_blank" style="flex: 1 1 0; max-width: 25%; text-align: center;">
     <img src="/assets/user_stories/MAL_DRE_US1d.png" alt="User Story 4" style="width:90%; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); margin-bottom: 0.6em;">
-    <div style="font-size: 1em;"><strong>Time to plan and strategize:</strong><br/>Problem is undestood, priritization and plaining in place. It iw a good day!</div>
+    <div style="font-size: 1em;"><strong>Time to plan and strategize:</strong><br/>Problem is undestood, priorities and plainning in place.</div>
   </a>
 
 </div>
