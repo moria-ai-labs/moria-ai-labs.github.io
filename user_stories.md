@@ -6,32 +6,32 @@ permalink: /user_stories/
 
 # User Stories
 
-Below are four user stories illustrated with images. Each panel represents a step in the journey.
+Below are four user stories. Click any panel to view the image in a larger size.
 
-<div style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center; align-items: flex-start;">
+<div style="display: flex; flex-wrap: nowrap; gap: 1em; justify-content: center; align-items: flex-start;">
 
-  <div style="flex: 1 1 200px; max-width: 220px; text-align: center;">
-    <img src="/assets/user_stories/MAL_DRE_US1a.png" alt="User Story 1" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
-    <p><strong>A Common Scene:</strong> The horror! A broken pipeline and a communication issue.</p>
-  </div>
+  <a href="/assets/user_stories/MAL_DRE_US1a.png" target="_blank" style="flex: 1 1 80px; max-width: 110px; text-align: center;">
+    <img src="/assets/user_stories/MAL_DRE_US1a.png" alt="User Story 1" style="width:100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.3em;">
+    <div style="font-size: 0.95em;"><strong>A Common Scene:</strong><br/>The horror! A broken pipeline and a communication issue.</div>
+  </a>
 
-  <div style="flex: 1 1 200px; max-width: 220px; text-align: center;">
-    <img src="/assets/user_stories/MAL_DRE_US1b.png" alt="User Story 2" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
-    <p><strong>Understanding the problem:</strong> Data Readiness helps identyfying the structure of the KPIs and the data</p>
-  </div>
+  <a href="/assets/user_stories/MAL_DRE_US1b.png" target="_blank" style="flex: 1 1 80px; max-width: 110px; text-align: center;">
+    <img src="/assets/user_stories/MAL_DRE_US1b.png" alt="User Story 2" style="width:100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.3em;">
+    <div style="font-size: 0.95em;"><strong>Understanding the problem:</strong><br/>Data Readiness helps identyfying the structure of the KPIs and the data</div>
+  </a>
 
-  <div style="flex: 1 1 200px; max-width: 220px; text-align: center;">
-    <img src="/assets/user_stories/MAL_DRE_US1c.png" alt="User Story 3" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
-    <p><strong>The missing link:</strong> Comparing the two networks, we identify the key missing link.</p>
-  </div>
+  <a href="/assets/user_stories/MAL_DRE_US1c.png" target="_blank" style="flex: 1 1 80px; max-width: 110px; text-align: center;">
+    <img src="/assets/user_stories/MAL_DRE_US1c.png" alt="User Story 3" style="width:100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.3em;">
+    <div style="font-size: 0.95em;"><strong>The missing link:</strong><br/>Comparing the two networks, we identify the key missing link.</div>
+  </a>
 
-  <div style="flex: 1 1 200px; max-width: 220px; text-align: center;">
-    <img src="/assets/user_stories/MAL_DRE_US1d.png" alt="User Story 4" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
-    <p><strong>Time to plan and strategize:</strong> Problem is undestood, priritization and plaining in place. It iw a good day!</p>
-  </div>
+  <a href="/assets/user_stories/MAL_DRE_US1d.png" target="_blank" style="flex: 1 1 80px; max-width: 110px; text-align: center;">
+    <img src="/assets/user_stories/MAL_DRE_US1d.png" alt="User Story 4" style="width:100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.3em;">
+    <div style="font-size: 0.95em;"><strong>Time to plan and strategize:</strong><br/>Problem is undestood, priritization and plaining in place. It iw a good day!</div>
+  </a>
 
 </div>
 
 ---
 
-*Replace the descriptions in brackets with your actual story steps for each panel. Make sure your images are named `story1.png`, `story2.png`, `story3.png`, `story4.png` and are located in the `assets` folder at the root of your repository.*
+*Click a panel to enlarge the image. Images are located in `/assets/user_stories/`.*
