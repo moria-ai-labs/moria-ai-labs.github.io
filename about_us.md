@@ -6,7 +6,7 @@ permalink: /about_us/
 
 # About Moria AI Labs
 
-Welcome to **[Moria AI Labs]**!
+Welcome to **Moria AI Labs**!
 
 Moria AI Labs is dedicated to empowering data practitioners with innovative tools that simplify the complexity of data. Our flagship product, the Data Readiness Engine, is designed to provide a comprehensive understanding of datasets, enabling rapid insights and efficient data processing. Data readiness is critical for AI, GenAI, and agent applications at the enterprise level - it unlocks:
 
@@ -26,7 +26,7 @@ Our mission is to unlock the full potential of data for organizations, believing
 
 Our team consists of experienced data scientists, engineers, and analysts who are passionate about building solutions that address real-world challenges in data management and utilization.
 
-- **[Hugo Contreras-Palacios]** — Project Lead & Backend Developer  
+- **Hugo Contreras-Palacios** — Project Lead & Backend Developer  
 - **[Teammate 1]** — Frontend Developer  
 - **[Teammate 2]** — UX/UI Designer  
 - **[Teammate 3]** — QA & Documentation  
@@ -39,7 +39,7 @@ We started this project because we saw a need for a more fluid dialogue between 
 ### Get in Touch
 
 We welcome feedback, suggestions, and contributions!  
-Feel free to [open an issue](https://github.com/your-username/your-repo/issues) or [contact us](mailto:your@email.com).
+Feel free to [open an issue](https://github.com/moria-ai-labs/data_readiness/issues) or [contact us](mailto:moria.ai.labs@gmail.com).
 
 ---
 
