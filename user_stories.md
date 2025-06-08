@@ -26,7 +26,7 @@ Below are four user stories illustrated with images. Each panel represents a ste
   </div>
 
   <div style="flex: 1 1 200px; max-width: 220px; text-align: center;">
-    <img src="assets/user_stories/MAL_DRE_US1d.png" alt="User Story 4" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
+    <img src="/assets/user_stories/MAL_DRE_US1d.png" alt="User Story 4" style="width:100%; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 0.5em;">
     <p><strong>Time to plan and strategize:</strong> Problem is undestood, priritization and plaining in place. It iw a good day!</p>
   </div>
 
