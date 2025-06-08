@@ -6,7 +6,7 @@ permalink: /user_stories/
 
 # User Stories
 
-Below are four user stories. Click any panel to view the image in a larger size.
+Below is a common user story in four scenes. Click any panel to view the image in a larger size.
 
 <div style="display: flex; flex-wrap: nowrap; gap: 2em; justify-content: space-between; align-items: flex-start; width: 100%;">
 
