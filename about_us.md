@@ -31,11 +31,10 @@ Our team consists of experienced data scientists, engineers, and analysts who ar
 - **[Teammate 2]** — UX/UI Designer  
 - **[Teammate 3]** — QA & Documentation  
 
-*(Add or remove team members as needed.)*
 
 ### Why This Project?
 
-We started this project because we saw a need for [state the problem your project addresses]. Our goal is to create something that is open, accessible, and valuable for the community.
+We started this project because we saw a need for a more fluid dialogue between data consumers and producers beyond just data quality. Our goal is to create something that is open, accessible, and valuable for the community.
 
 ### Get in Touch
 
