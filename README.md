@@ -15,4 +15,4 @@ This is a sample GitHub Pages site powered by Jekyll.
 - 📄 Read the [documentation](./docs)!
 - ✉️ [Contact me](mailto:your@email.com)
 
-![My Project Screenshot](assets/screenshot.png)
+![My Project Screenshot](assets/networks_schema.png)
