@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "User Case: The Prancing Pony Inn"
+title: "The Prancing Pony Inn"
 permalink: /use_case1/
 ---
 
