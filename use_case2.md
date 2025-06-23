@@ -37,3 +37,5 @@ Below is a common use case - a fictional Online Bank with a solid customer base.
 
 <iframe src="/assets/the_lone_mountain_network.html" width="100%" height="600" frameborder="0"></iframe>
 
+![Similarity Score of the customers](assets/the_lonely_mointain_similarity_score.png)
+
