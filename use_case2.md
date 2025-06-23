@@ -30,3 +30,10 @@ With a graph approach, we can:
 - Enhance Personalization: By mapping out user behaviors as a graph, we can run A/B tests that are more nuanced, targeting specific user segments based on their historical interactions and preferences within the banking network.
 
 At Lonely Mountain Online Bank, embracing a graph/network approach to A/B testing allows us to move beyond isolated experiments and gain a deeper, more interconnected understanding of our customers' online banking journeys. This enables us to make more informed, strategic decisions, ultimately leading to a more seamless and satisfying experience for all our customers.
+
+## Use Case: The Lonely Montain Online Bank
+
+Below is a common use case - a fictional Online Bank with a solid customer base. How might we create a digital footprint of the client and provide a platform to simulate all business aspects? In this case an AB test?
+
+<iframe src="/assets/the_lone_mountain_network.html" width="100%" height="600" frameborder="0"></iframe>
+
