@@ -35,9 +35,15 @@ At Lonely Mountain Online Bank, embracing a graph/network approach to A/B testin
 
 Below is a common use case - a fictional Online Bank with a solid customer base. How might we create a digital footprint of the client and provide a platform to simulate all business aspects? In this case an AB test?
 
-<iframe src="/assets/the_lone_mountain_network.html" width="100%" height="600" frameborder="0"></iframe>
+It all starts with relationships - implicit or explicit. In this case we started builing a similarity score based on the online and offline footprint of the customers. 
 
 ![Similarity Score of the customers](assets/the_lonely_mointain_similarity_score.png)
+
+The choice of the threshold is an art and a science - it dependes on what we want to explore about the customer.
+
+<iframe src="/assets/the_lone_mountain_network.html" width="100%" height="600" frameborder="0"></iframe>
+
+The data story from the similarity is powerful - it allows us to identify the cohorts of customers that could respond better to our test - say a new feature. The essence of the A/B test is to systematically build sound experiments to converge tot the best configuration of variables. 
 
 
 ![AB test results of the customers](assets/the_lonely_mountain_AB_test.png)
