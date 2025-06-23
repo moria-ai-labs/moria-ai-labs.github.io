@@ -39,3 +39,6 @@ Below is a common use case - a fictional Online Bank with a solid customer base.
 
 ![Similarity Score of the customers](assets/the_lonely_mointain_similarity_score.png)
 
+
+![AB test results of the customers](assets/the_lonely_mountain_AB_test.png)
+
