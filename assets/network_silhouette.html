@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluster Explorer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the canvas and overall layout */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        canvas {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+            width: 100%;
+            /* Note: height is managed by JS for responsiveness */
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin-top: -8px; /* Adjust thumb position */
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: #e0e7ff;
+            border-radius: 4px;
+        }
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            background: #e0e7ff;
+            border-radius: 4px;
+        }
+        .silhouette-bar-container {
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            height: 2rem;
+            position: relative;
+        }
+        .silhouette-bar {
+            height: 100%;
+            background-color: #10b981; /* Green color for good score */
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+            border-radius: 0.5rem;
+        }
+        .silhouette-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #1a202c; /* dark text */
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 0 0 2px rgba(255,255,255,0.7);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-7xl mx-auto bg-white p-6 md:p-8 rounded-xl shadow-lg flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
+
+        <!-- Left Panel: Controls -->
+        <div class="lg:w-1/3 p-4 bg-gray-50 rounded-lg shadow-inner flex flex-col space-y-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Cluster Explorer</h1>
+
+            <!-- Data Generation Controls -->
+            <div class="bg-blue-50 p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-blue-800 mb-3">Generate Data</h2>
+                <div class="mb-4">
+                    <label for="numClusters" class="block text-sm font-medium text-gray-700">Number of Clusters (k):</label>
+                    <input type="number" id="numClusters" value="4" min="2" max="10"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                </div>
+                <div class="mb-4">
+                    <label for="numPoints" class="block text-sm font-medium text-gray-700">Total Number of Points:</label>
+                    <input type="number" id="numPoints" value="1000" min="100" max="5000" step="100"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                </div>
+                <div class="mb-4">
+                    <label for="overlapSlider" class="block text-sm font-medium text-gray-700 mb-1">Cluster Overlap:</label>
+                    <input type="range" id="overlapSlider" min="0" max="100" value="50" class="w-full h-2 bg-blue-100 rounded-lg appearance-none cursor-pointer">
+                    <span id="overlapValue" class="text-xs text-gray-600 mt-1 block text-right">Medium</span>
+                </div>
+                <button id="createDataBtn"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105 shadow-md">
+                    Create Data
+                </button>
+            </div>
+
+            <!-- Clustering Method Controls -->
+            <div class="bg-purple-50 p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-purple-800 mb-3">Clustering Method</h2>
+                <div class="mb-4">
+                    <label for="clusteringMethod" class="block text-sm font-medium text-gray-700">Select Method:</label>
+                    <select id="clusteringMethod"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                        <option value="kmeans">k-Means</option>
+                        <!-- Add other methods later if desired, e.g., <option value="agglomerative">Agglomerative</option> -->
+                    </select>
+                </div>
+                <button id="runClusteringBtn"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105 shadow-md">
+                    Run Clustering
+                </button>
+            </div>
+
+            <!-- Reset Button -->
+            <button id="resetBtn"
+                    class="w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105 shadow-md">
+                Reset
+            </button>
+        </div>
+
+        <!-- Right Panel: Visualization and Metrics -->
+        <div class="lg:w-2/3 p-4 bg-gray-50 rounded-lg shadow-inner flex flex-col space-y-6">
+            <!-- Data Plot -->
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-3 text-center">Data Visualization</h2>
+                <canvas id="dataCanvas" width="600" height="500"></canvas>
+            </div>
+
+            <!-- Silhouette Score Panel -->
+            <div class="bg-green-50 p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-green-800 mb-3 text-center">Average Silhouette Score</h2>
+                <div class="silhouette-bar-container">
+                    <div id="silhouetteBar" class="silhouette-bar"></div>
+                    <span id="silhouetteScoreText" class="silhouette-text">N/A</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-2 text-center">
+                    (Score ranges from -1 to 1. Higher is better.)
+                </p>
+            </div>
+
+            <!-- Individual Silhouette Graph Panels Container -->
+            <div class="bg-yellow-50 p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-yellow-800 mb-3 text-center">Individual Silhouette Coefficients</h2>
+                <div class="mb-4">
+                    <label for="silhouetteHeightSlider" class="block text-sm font-medium text-gray-700 mb-1">Plot Height Per Cluster:</label>
+                    <input type="range" id="silhouetteHeightSlider" min="100" max="800" value="200" step="25" class="w-full h-2 bg-yellow-100 rounded-lg appearance-none cursor-pointer">
+                    <span id="silhouetteHeightValue" class="text-xs text-gray-600 mt-1 block text-right">200px</span>
+                </div>
+                <div id="silhouetteGraphContainer" class="flex flex-col space-y-4">
+                    <!-- Individual cluster canvases will be injected here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for data, canvas, and context
+        let points = [];
+        let clusterAssignments = [];
+        let centroids = [];
+        let kMeansMaxIterations = 100; // Max iterations for k-Means
+        let dataCanvas, dataCtx;
+        let canvasWidth, dataCanvasHeight; // dataCanvasHeight is fixed
+        let silhouetteClusterPlotHeight = 200; // Initial height for each individual cluster plot
+
+        // Store silhouette data globally for redraws
+        let currentSilhouetteIndividualScores = [];
+        let currentNumClusters = 0;
+
+        const pointSize = 3; // Size of each data point on canvas
+        const colors = [
+            '#FF6347', '#4682B4', '#3CB371', '#FFD700', '#DA70D6',
+            '#FFA07A', '#7B68EE', '#ADFF2F', '#FF4500', '#00CED1'
+        ]; // Array of colors for clusters
+
+        // --- Utility Functions ---
+
+        /**
+         * Calculates Euclidean distance between two 2D points.
+         * @param {object} p1 - First point {x, y}.
+         * @param {object} p2 - Second point {x, y}.
+         * @returns {number} - Euclidean distance.
+         */
+        function calculateDistance(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        // --- Data Generation Functions ---
+
+        /**
+         * Generates synthetic 2D data points for clustering.
+         * @param {number} numClusters - The desired number of clusters.
+         * @param {number} numPoints - The total number of points to generate.
+         * @param {number} overlapFactor - A value (0-100) controlling the spread/overlap of clusters.
+         * @returns {Array<object>} - An array of {x, y} data points.
+         */
+        function generateData(numClusters, numPoints, overlapFactor) {
+            const newPoints = [];
+            // Use a reduced range for cluster centers to ensure clusters fit better
+            // 10% padding from each side
+            const padding = 0.1;
+            const effectiveWidth = canvasWidth * (1 - 2 * padding);
+            const effectiveHeight = dataCanvasHeight * (1 - 2 * padding);
+            const offsetX = canvasWidth * padding;
+            const offsetY = dataCanvasHeight * padding;
+
+            // Determine spread based on overlapFactor (0 = max spread/overlap, 100 = min spread/overlap)
+            // Map overlapFactor from [0, 100] to a standard deviation range, e.g., [80, 10]
+            const maxStdDev = 80;
+            const minStdDev = 10;
+            const stdDev = maxStdDev - (overlapFactor / 100) * (maxStdDev - minStdDev);
+
+            // Generate cluster centers (centroids) spread across the effective canvas area
+            const clusterCenters = [];
+            for (let i = 0; i < numClusters; i++) {
+                clusterCenters.push({
+                    x: Math.random() * effectiveWidth + offsetX,
+                    y: Math.random() * effectiveHeight + offsetY
+                });
+            }
+
+            // Generate points around these centers
+            for (let i = 0; i < numPoints; i++) {
+                const clusterIndex = Math.floor(Math.random() * numClusters);
+                const center = clusterCenters[clusterIndex];
+
+                // Generate points using a pseudo-normal distribution
+                let xOffset = (Math.random() + Math.random() + Math.random() - 1.5) * stdDev;
+                let yOffset = (Math.random() + Math.random() + Math.random() - 1.5) * stdDev;
+
+                let x = center.x + xOffset;
+                let y = center.y + yOffset;
+
+                // Ensure points stay within canvas bounds even with padding
+                x = Math.max(0, Math.min(canvasWidth, x));
+                y = Math.max(0, Math.min(dataCanvasHeight, y));
+
+                newPoints.push({ x, y, originalCluster: clusterIndex }); // Store original cluster for verification/debug
+            }
+            return newPoints;
+        }
+
+        // --- K-Means Clustering Functions ---
+
+        /**
+         * Initializes k centroids randomly from the data points.
+         * @param {Array<object>} data - The array of data points.
+         * @param {number} k - The number of clusters.
+         * @returns {Array<object>} - An array of initial centroid points.
+         */
+        function initializeCentroids(data, k) {
+            const initialCentroids = [];
+            const dataCopy = [...data]; // Create a shallow copy to avoid modifying original array
+            for (let i = 0; i < k; i++) {
+                const randomIndex = Math.floor(Math.random() * dataCopy.length);
+                initialCentroids.push({ ...dataCopy[randomIndex] }); // Copy the point to avoid reference issues
+                dataCopy.splice(randomIndex, 1); // Remove selected point to ensure unique initial centroids
+            }
+            return initialCentroids;
+        }
+
+        /**
+         * Assigns each data point to the closest centroid.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<object>} centroids - The array of current centroids.
+         * @returns {Array<number>} - An array where each element is the cluster index for the corresponding data point.
+         */
+        function assignToClusters(data, centroids) {
+            const assignments = new Array(data.length).fill(0);
+            data.forEach((point, i) => {
+                let minDistance = Infinity;
+                let closestCentroidIndex = -1;
+                centroids.forEach((centroid, j) => {
+                    const dist = calculateDistance(point, centroid);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestCentroidIndex = j;
+                    }
+                });
+                assignments[i] = closestCentroidIndex;
+            });
+            return assignments;
+        }
+
+        /**
+         * Recalculates the centroids based on the new cluster assignments.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<number>} assignments - The cluster assignments for each data point.
+         * @param {number} k - The number of clusters.
+         * @returns {Array<object>} - An array of new centroid points.
+         */
+        function updateCentroids(data, assignments, k) {
+            const newCentroids = Array.from({ length: k }, () => ({ x: 0, y: 0, count: 0 }));
+
+            data.forEach((point, i) => {
+                const clusterIndex = assignments[i];
+                if (clusterIndex !== -1) { // Ensure point was assigned to a cluster
+                    newCentroids[clusterIndex].x += point.x;
+                    newCentroids[clusterIndex].y += point.y;
+                    newCentroids[clusterIndex].count++;
+                }
+            });
+
+            return newCentroids.map(centroid => {
+                if (centroid.count > 0) {
+                    return { x: centroid.x / centroid.count, y: centroid.y / centroid.count };
+                } else {
+                    // Handle empty cluster: reinitialize centroid to a random point within canvas
+                    return { x: Math.random() * canvasWidth, y: Math.random() * dataCanvasHeight };
+                }
+            });
+        }
+
+        /**
+         * Performs the k-Means clustering algorithm.
+         * @param {Array<object>} data - The array of data points.
+         * @param {number} k - The number of clusters.
+         * @returns {Array<number>} - The final cluster assignments for each data point.
+         */
+        function runKMeans(data, k) {
+            if (data.length === 0 || k <= 0 || k > data.length) {
+                console.error("Invalid input for k-Means.");
+                return [];
+            }
+
+            let currentCentroids = initializeCentroids(data, k);
+            let currentAssignments = [];
+            let previousAssignments = [];
+            let iterations = 0;
+
+            // Iterate until convergence or max iterations
+            while (iterations < kMeansMaxIterations) {
+                currentAssignments = assignToClusters(data, currentCentroids);
+
+                // Check for convergence (assignments didn't change)
+                if (JSON.stringify(currentAssignments) === JSON.stringify(previousAssignments)) {
+                    break;
+                }
+
+                currentCentroids = updateCentroids(data, currentAssignments, k);
+                previousAssignments = currentAssignments;
+                iterations++;
+            }
+            centroids = currentCentroids; // Store final centroids for drawing if needed
+            return currentAssignments;
+        }
+
+        // --- Visualization Functions ---
+
+        /**
+         * Clears the data canvas.
+         */
+        function clearDataCanvas() {
+            dataCtx.clearRect(0, 0, canvasWidth, dataCanvasHeight);
+        }
+
+        /**
+         * Draws the data points on the data canvas, color-coded by cluster assignment.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<number>} assignments - The cluster assignments for each data point.
+         */
+        function drawData(data, assignments) {
+            clearDataCanvas();
+            data.forEach((point, i) => {
+                const clusterIndex = assignments[i];
+                if (clusterIndex !== -1 && colors[clusterIndex]) {
+                    dataCtx.fillStyle = colors[clusterIndex];
+                } else {
+                    dataCtx.fillStyle = '#6B7280'; // Default gray for unassigned or out-of-range clusters
+                }
+                dataCtx.beginPath();
+                dataCtx.arc(point.x, point.y, pointSize, 0, Math.PI * 2);
+                dataCtx.fill();
+            });
+
+            // Optionally, draw centroids
+            /*
+            centroids.forEach((centroid, i) => {
+                dataCtx.fillStyle = '#000000'; // Black for centroids
+                dataCtx.beginPath();
+                dataCtx.arc(centroid.x, centroid.y, pointSize * 2, 0, Math.PI * 2); // Larger for visibility
+                dataCtx.fill();
+                dataCtx.strokeStyle = colors[i] || '#6B7280';
+                dataCtx.lineWidth = 2;
+                dataCtx.stroke();
+            });
+            */
+        }
+
+        /**
+         * Draws an individual silhouette graph for a single cluster.
+         * @param {HTMLCanvasElement} canvasElement - The canvas element for this cluster.
+         * @param {CanvasRenderingContext2D} ctx - The 2D rendering context for the canvas.
+         * @param {Array<object>} clusterSilhouetteData - Silhouette data for this specific cluster.
+         * @param {number} clusterId - The ID of the cluster.
+         */
+        function drawSingleClusterSilhouetteGraph(canvasElement, ctx, clusterSilhouetteData, clusterId) {
+            const localCanvasWidth = canvasElement.width;
+            const localCanvasHeight = canvasElement.height;
+
+            ctx.clearRect(0, 0, localCanvasWidth, localCanvasHeight);
+
+            if (clusterSilhouetteData.length === 0) {
+                ctx.fillStyle = '#6B7280';
+                ctx.font = '14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Cluster ${clusterId} (No Data)`, localCanvasWidth / 2, localCanvasHeight / 2);
+                return;
+            }
+
+            // Sort points within this cluster by silhouette score (descending)
+            clusterSilhouetteData.sort((a, b) => b.s_i - a.s_i);
+
+            const midX = localCanvasWidth / 2; // X-axis center for 0 silhouette score
+            const barSpacing = 0.5; // Small vertical gap between bars
+            const minBarHeight = 1; // Minimum height for a bar to be visible
+
+            // Calculate effective bar height for this cluster
+            const effectiveBarHeight = Math.max(minBarHeight, (localCanvasHeight / clusterSilhouetteData.length) - barSpacing);
+
+            // Draw a vertical line at 0 for reference
+            ctx.strokeStyle = '#9CA3AF'; // Gray line
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(midX, 0);
+            ctx.lineTo(midX, localCanvasHeight);
+            ctx.stroke();
+
+            let currentY = 0;
+            clusterSilhouetteData.forEach(item => {
+                const y = currentY;
+                const barWidth = Math.abs(item.s_i) * (localCanvasWidth / 2 - 20); // Scale score from 0-1 to half canvas width, with margin
+                const x = item.s_i >= 0 ? midX : midX - barWidth;
+
+                // Clamp barWidth to prevent drawing beyond canvas boundaries
+                const clampedBarWidth = Math.min(barWidth, localCanvasWidth / 2 - 20);
+
+                // Color based on cluster (using the global colors array based on clusterId)
+                const barColor = colors[clusterId] || '#6B7280';
+                ctx.fillStyle = barColor;
+
+                ctx.fillRect(x, y, clampedBarWidth, effectiveBarHeight);
+                currentY += effectiveBarHeight + barSpacing; // Move to the next bar's position
+            });
+        }
+
+
+        /**
+         * Orchestrates drawing all individual silhouette graphs.
+         * @param {Array<object>} silhouetteData - Array of objects {s_i: number, cluster: number}
+         * @param {number} numClusters - The number of clusters to display.
+         */
+        function drawAllSilhouetteGraphs(silhouetteData, numClusters) {
+            const container = document.getElementById('silhouetteGraphContainer');
+            container.innerHTML = ''; // Clear existing canvases
+
+            currentSilhouetteIndividualScores = silhouetteData; // Store for redraws
+            currentNumClusters = numClusters; // Store for redraws
+
+            // Group data by cluster
+            const groupedData = {};
+            for (let i = 0; i < numClusters; i++) {
+                groupedData[i] = [];
+            }
+            silhouetteData.forEach(item => {
+                if (groupedData[item.cluster] !== undefined) {
+                    groupedData[item.cluster].push(item);
+                }
+            });
+
+            for (let clusterId = 0; clusterId < numClusters; clusterId++) {
+                const clusterPoints = groupedData[clusterId];
+
+                // Create a div for each cluster's plot to contain label and canvas
+                const clusterPlotDiv = document.createElement('div');
+                clusterPlotDiv.className = 'flex flex-col mb-4'; // Tailwind classes for spacing
+
+                const label = document.createElement('h3');
+                label.className = 'text-lg font-medium text-gray-700 mb-2';
+                label.textContent = `Cluster ${clusterId}`;
+                clusterPlotDiv.appendChild(label);
+
+                const canvasElement = document.createElement('canvas');
+                canvasElement.id = `silhouetteGraphCanvas_${clusterId}`;
+                canvasElement.width = canvasWidth; // Set internal width to match container
+                canvasElement.height = silhouetteClusterPlotHeight; // Set individual cluster plot height
+                canvasElement.style.width = '100%'; // Ensure canvas scales with parent
+                canvasElement.style.height = `${silhouetteClusterPlotHeight}px`; // Set display height
+                canvasElement.className = 'rounded-lg shadow-inner'; // Apply some styling
+
+                clusterPlotDiv.appendChild(canvasElement);
+                container.appendChild(clusterPlotDiv);
+
+                const ctx = canvasElement.getContext('2d');
+                drawSingleClusterSilhouetteGraph(canvasElement, ctx, clusterPoints, clusterId);
+            }
+        }
+
+
+        // --- Silhouette Score Calculation ---
+
+        /**
+         * Calculates the average distance from a point to all other points in its own cluster.
+         * @param {number} pointIndex - Index of the point in the data array.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<number>} assignments - The cluster assignments for each data point.
+         * @returns {number} - The average intra-cluster distance (a_i).
+         */
+        function calculate_a_i(pointIndex, data, assignments) {
+            const currentPoint = data[pointIndex];
+            const currentCluster = assignments[pointIndex];
+            let sumDistances = 0;
+            let count = 0;
+
+            for (let i = 0; i < data.length; i++) {
+                if (i !== pointIndex && assignments[i] === currentCluster) {
+                    sumDistances += calculateDistance(currentPoint, data[i]);
+                    count++;
+                }
+            }
+            return count > 0 ? sumDistances / count : 0; // If cluster has only 1 point, a_i is 0
+        }
+
+        /**
+         * Calculates the minimum average distance from a point to all points in any *other* cluster.
+         * @param {number} pointIndex - Index of the point in the data array.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<number>} assignments - The cluster assignments for each data point.
+         * @param {number} k - The total number of clusters.
+         * @returns {number} - The minimum average inter-cluster distance (b_i).
+         */
+        function calculate_b_i(pointIndex, data, assignments, k) {
+            const currentPoint = data[pointIndex];
+            const currentCluster = assignments[pointIndex];
+            let minAvgDistance = Infinity;
+
+            for (let clusterId = 0; clusterId < k; clusterId++) {
+                if (clusterId === currentCluster) continue; // Skip own cluster
+
+                let sumDistances = 0;
+                let count = 0;
+                for (let i = 0; i < data.length; i++) {
+                    if (assignments[i] === clusterId) {
+                        sumDistances += calculateDistance(currentPoint, data[i]);
+                        count++;
+                    }
+                }
+
+                if (count > 0) {
+                    const avgDistance = sumDistances / count;
+                    if (avgDistance < minAvgDistance) {
+                        minAvgDistance = avgDistance;
+                    }
+                }
+            }
+            return minAvgDistance === Infinity ? 0 : minAvgDistance; // If no other clusters, b_i is 0
+        }
+
+        /**
+         * Calculates the overall Silhouette Score for the clustering and individual scores.
+         * @param {Array<object>} data - The array of data points.
+         * @param {Array<number>} assignments - The cluster assignments for each data point.
+         * @param {number} k - The total number of clusters.
+         * @returns {object} - An object containing overall score and an array of individual scores.
+         */
+        function calculateSilhouetteScore(data, assignments, k) {
+            const individualScores = [];
+            let totalSilhouette = 0;
+            let countValidPoints = 0;
+
+            if (data.length <= 1 || k <= 1) {
+                // If there's only one point or one cluster, silhouette is undefined/0
+                return { overall: 0, individual: [] };
+            }
+
+            for (let i = 0; i < data.length; i++) {
+                const currentCluster = assignments[i];
+                const clusterPoints = data.filter((_, idx) => assignments[idx] === currentCluster);
+
+                // Silhouette coefficient is 0 for single-point clusters or points in single-point clusters
+                if (clusterPoints.length <= 1) {
+                    individualScores.push({ s_i: 0, cluster: currentCluster });
+                    continue;
+                }
+
+                const a_i = calculate_a_i(i, data, assignments);
+                const b_i = calculate_b_i(i, data, assignments, k);
+
+                let s_i;
+                if (Math.max(a_i, b_i) === 0) {
+                    s_i = 0; // Avoid division by zero
+                } else {
+                    s_i = (b_i - a_i) / Math.max(a_i, b_i);
+                }
+
+                individualScores.push({ s_i: s_i, cluster: currentCluster });
+                totalSilhouette += s_i;
+                countValidPoints++;
+            }
+
+            const overallScore = countValidPoints > 0 ? totalSilhouette / countValidPoints : 0;
+            return { overall: overallScore, individual: individualScores };
+        }
+
+        /**
+         * Updates the display of the Silhouette score.
+         * @param {number} score - The calculated Silhouette score.
+         */
+        function updateSilhouetteDisplay(score) {
+            const silhouetteBar = document.getElementById('silhouetteBar');
+            const silhouetteScoreText = document.getElementById('silhouetteScoreText');
+
+            // Map score from [-1, 1] to [0, 100] for percentage bar width
+            const percentage = ((score + 1) / 2) * 100;
+
+            silhouetteBar.style.width = `${percentage}%`;
+            silhouetteScoreText.textContent = `Score: ${score.toFixed(3)}`;
+
+            // Change bar color based on score (optional)
+            if (score > 0.7) {
+                silhouetteBar.style.backgroundColor = '#16a34a'; // bg-green-600
+            } else if (score > 0.4) {
+                silhouetteBar.style.backgroundColor = '#facc15'; // bg-yellow-400
+            } else {
+                silhouetteBar.style.backgroundColor = '#dc2626'; // bg-red-600
+            }
+        }
+
+
+        // --- Event Handlers and Main Logic ---
+
+        /**
+         * Handles the "Create Data" button click.
+         */
+        function handleCreateData() {
+            const numClusters = parseInt(document.getElementById('numClusters').value);
+            const numPoints = parseInt(document.getElementById('numPoints').value);
+            const overlapFactor = parseInt(document.getElementById('overlapSlider').value);
+
+            if (isNaN(numClusters) || isNaN(numPoints) || numClusters < 2 || numPoints < 100 || numClusters > numPoints) {
+                alert("Please enter valid numbers for clusters (min 2, max points) and points (min 100).");
+                return;
+            }
+
+            points = generateData(numClusters, numPoints, overlapFactor);
+            clusterAssignments = new Array(points.length).fill(-1); // No assignments yet
+            drawData(points, clusterAssignments); // Draw unclustered data
+            updateSilhouetteDisplay(0); // Reset overall silhouette display
+            drawAllSilhouetteGraphs([], numClusters); // Clear and re-init graph panels
+            console.log(`Generated ${points.length} points for ${numClusters} clusters.`);
+        }
+
+        /**
+         * Handles the "Run Clustering" button click.
+         */
+        function handleRunClustering() {
+            if (points.length === 0) {
+                alert("Please create data first!");
+                return;
+            }
+
+            const clusteringMethod = document.getElementById('clusteringMethod').value;
+            const numClusters = parseInt(document.getElementById('numClusters').value); // Use the same k as data generation
+
+            // Clear previous centroids if any
+            centroids = [];
+
+            if (clusteringMethod === 'kmeans') {
+                try {
+                    clusterAssignments = runKMeans(points, numClusters);
+                    drawData(points, clusterAssignments); // Draw clustered data
+                    const silhouetteResults = calculateSilhouetteScore(points, clusterAssignments, numClusters);
+                    updateSilhouetteDisplay(silhouetteResults.overall); // Update overall score display
+                    drawAllSilhouetteGraphs(silhouetteResults.individual, numClusters); // Draw individual scores graph
+                    console.log(`Clustered data using k-Means with k=${numClusters}. Overall Silhouette Score: ${silhouetteResults.overall.toFixed(3)}`);
+                } catch (error) {
+                    console.error("Error during k-Means clustering:", error);
+                    alert("An error occurred during clustering. Check console for details.");
+                }
+            } else {
+                alert("Selected clustering method is not yet implemented.");
+            }
+        }
+
+        /**
+         * Handles the "Reset" button click.
+         */
+        function handleReset() {
+            points = [];
+            clusterAssignments = [];
+            centroids = [];
+            currentSilhouetteIndividualScores = []; // Clear stored silhouette data
+            currentNumClusters = 0; // Reset cluster count
+            clearDataCanvas();
+            document.getElementById('silhouetteGraphContainer').innerHTML = ''; // Clear all individual graph panels
+            updateSilhouetteDisplay(0);
+            document.getElementById('numClusters').value = 4;
+            document.getElementById('numPoints').value = 1000;
+            document.getElementById('overlapSlider').value = 50;
+            document.getElementById('overlapValue').textContent = 'Medium';
+            // Reset silhouette height slider and its display
+            document.getElementById('silhouetteHeightSlider').value = 200; // Reset to default for individual plots
+            document.getElementById('silhouetteHeightValue').textContent = '200px';
+            console.log("Application reset.");
+        }
+
+        /**
+         * Updates the overlap slider value display.
+         */
+        function updateOverlapValueDisplay() {
+            const overlapSlider = document.getElementById('overlapSlider');
+            const overlapValueSpan = document.getElementById('overlapValue');
+            const value = parseInt(overlapSlider.value);
+
+            let text = '';
+            if (value < 25) {
+                text = 'High Overlap';
+            } else if (value < 75) {
+                text = 'Medium Overlap';
+            } else {
+                text = 'Low Overlap';
+            }
+            overlapValueSpan.textContent = text;
+        }
+
+        /**
+         * Updates the silhouette plot height based on the slider.
+         */
+        function updateSilhouettePlotHeight() {
+            const slider = document.getElementById('silhouetteHeightSlider');
+            const valueSpan = document.getElementById('silhouetteHeightValue');
+            silhouetteClusterPlotHeight = parseInt(slider.value);
+            valueSpan.textContent = `${silhouetteClusterPlotHeight}px`;
+
+            // Redraw all individual cluster canvases with the new height
+            if (currentSilhouetteIndividualScores.length > 0) {
+                drawAllSilhouetteGraphs(currentSilhouetteIndividualScores, currentNumClusters);
+            }
+        }
+
+
+        /**
+         * Initializes the canvas dimensions and context.
+         */
+        function initCanvases() {
+            dataCanvas = document.getElementById('dataCanvas');
+            dataCtx = dataCanvas.getContext('2d');
+
+            // Set data canvas display size for responsiveness
+            const parentWidth = dataCanvas.parentElement.clientWidth;
+            canvasWidth = parentWidth;
+            dataCanvasHeight = 500; // Fixed height for data plot
+
+            dataCanvas.style.width = `${canvasWidth}px`;
+            dataCanvas.style.height = `${dataCanvasHeight}px`;
+
+            // Set internal data canvas drawing buffer size (resolution) to match display size
+            dataCanvas.width = canvasWidth;
+            dataCanvas.height = dataCanvasHeight;
+
+            // If points exist, redraw data plot
+            if (points.length > 0) {
+                drawData(points, clusterAssignments);
+            } else {
+                clearDataCanvas();
+            }
+
+            // Redraw all individual silhouette graphs to apply potential width changes
+            if (currentSilhouetteIndividualScores.length > 0) {
+                drawAllSilhouetteGraphs(currentSilhouetteIndividualScores, currentNumClusters);
+            }
+        }
+
+        // --- Initial Setup and Event Listeners ---
+        window.onload = function() {
+            // Get initial height for silhouette cluster plots from slider
+            silhouetteClusterPlotHeight = parseInt(document.getElementById('silhouetteHeightSlider').value);
+
+            initCanvases(); // Initialize canvases on load
+
+            // Event Listeners
+            document.getElementById('createDataBtn').addEventListener('click', handleCreateData);
+            document.getElementById('runClusteringBtn').addEventListener('click', handleRunClustering);
+            document.getElementById('resetBtn').addEventListener('click', handleReset);
+            document.getElementById('overlapSlider').addEventListener('input', updateOverlapValueDisplay);
+            document.getElementById('silhouetteHeightSlider').addEventListener('input', updateSilhouettePlotHeight); // New listener for height slider
+
+
+            // Initial calls to update text
+            updateOverlapValueDisplay();
+            document.getElementById('silhouetteHeightValue').textContent = `${silhouetteClusterPlotHeight}px`; // Set initial display
+
+
+            // Handle window resize to make canvases responsive
+            window.addEventListener('resize', initCanvases);
+
+            // Initial data generation and clustering for immediate demo
+            handleCreateData(); // Generate initial data
+            handleRunClustering(); // Run clustering on initial data
+        };
+    </script>
+</body>
+</html>

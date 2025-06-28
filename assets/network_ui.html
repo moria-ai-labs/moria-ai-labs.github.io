@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Generator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the network canvas */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f4f8; /* Light gray background */
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 95%; /* Responsive width */
+            max-width: 1200px; /* Max width for larger screens */
+            background-color: #ffffff;
+            border-radius: 12px; /* Rounded corners for the main container */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Soft shadow */
+            overflow: hidden; /* Ensure content stays within rounded corners */
+            min-height: 80vh;
+        }
+        #main-content {
+            display: flex;
+            flex-grow: 1;
+            flex-direction: column; /* Default to column for small screens */
+        }
+        @media (min-width: 768px) { /* Medium screens and up */
+            #main-content {
+                flex-direction: row; /* Row layout for larger screens */
+            }
+        }
+        #canvas-container {
+            flex-grow: 1;
+            background-color: #e2e8f0; /* Light blue-gray for canvas background */
+            position: relative; /* For absolute positioning of elements inside */
+            border-radius: 8px; /* Slightly rounded corners for canvas area */
+            margin: 16px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: #ffffff; /* White background for the drawing area */
+            border-radius: 8px;
+            border: 1px solid #cbd5e1; /* Light border */
+        }
+        #controls, #summary {
+            padding: 16px;
+            background-color: #f8fafc; /* Lighter background for side panels */
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); /* Inner shadow for panels */
+        }
+        #controls {
+            margin: 16px;
+            width: auto; /* Auto width for small screens */
+        }
+        #summary {
+            margin: 16px;
+            width: auto; /* Auto width for small screens */
+        }
+        @media (min-width: 768px) {
+            #controls {
+                width: 250px; /* Fixed width for controls on larger screens */
+                flex-shrink: 0;
+            }
+            #summary {
+                width: 280px; /* Fixed width for summary on larger screens */
+                flex-shrink: 0;
+            }
+            #main-content {
+                justify-content: space-between; /* Space out elements */
+            }
+            #canvas-container {
+                flex-basis: calc(100% - 550px); /* Adjust canvas width */
+            }
+        }
+
+        /* Button styles */
+        button {
+            @apply px-4 py-2 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-opacity-75 transition duration-200 ease-in-out;
+            @apply shadow-md hover:shadow-lg;
+        }
+        .btn-primary {
+            @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+        }
+        .btn-secondary {
+            @apply bg-gray-300 text-gray-800 hover:bg-gray-400 focus:ring-gray-500;
+        }
+        .btn-toggle-active {
+            @apply bg-green-500 text-white hover:bg-green-600 focus:ring-green-400;
+        }
+        .btn-toggle-inactive {
+            @apply bg-red-400 text-white hover:bg-red-500 focus:ring-red-300;
+        }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 450px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-out;
+        }
+        .modal.open .modal-content {
+            transform: translateY(0);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .modal-header h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2d3748; /* Dark gray */
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            color: #718096; /* Gray text */
+            cursor: pointer;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568; /* Medium gray */
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #2d3748;
+            background-color: #f8fafc;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #63b3ed; /* Blue focus border */
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.3); /* Blue focus shadow */
+        }
+        .form-actions {
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .insights-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .insights-section h3 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+        #networkInsights {
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            max-height: 200px; /* Limit height of insights area */
+            overflow-y: auto; /* Scroll if content overflows */
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5; /* Indigo */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container" class="flex flex-col md:flex-row p-4">
+        <!-- Controls Panel -->
+        <div id="controls" class="md:w-1/4 p-4 bg-gray-50 rounded-lg shadow-md mb-4 md:mb-0 md:mr-4">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Network Controls</h2>
+            <div class="space-y-4">
+                <button id="addNodeButton" class="w-full btn-primary">
+                    Click to Add Node
+                </button>
+                <button id="toggleConnectMode" class="w-full btn-toggle-inactive">
+                    Connect Mode: OFF
+                </button>
+                <button id="clearAllButton" class="w-full btn-secondary bg-red-500 text-white hover:bg-red-600">
+                    Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Area: Canvas and Summary -->
+        <div id="main-content" class="flex-grow flex flex-col md:flex-row">
+            <!-- Canvas Container -->
+            <div id="canvas-container" class="flex-grow bg-blue-50 rounded-lg shadow-md flex items-center justify-center relative min-h-[400px]">
+                <canvas id="networkCanvas" class="w-full h-full"></canvas>
+            </div>
+
+            <!-- Summary Panel -->
+            <div id="summary" class="md:w-1/4 p-4 bg-gray-50 rounded-lg shadow-md mt-4 md:mt-0 md:ml-4">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">Network Summary</h2>
+                <div class="space-y-2 text-gray-700">
+                    <p><strong>Nodes:</strong> <span id="nodeCount">0</span></p>
+                    <p><strong>Links:</strong> <span id="linkCount">0</span></p>
+                    <p><strong>Most Critical Nodes (by Degree):</strong></p>
+                    <ul id="criticalNodesList" class="list-disc list-inside text-sm pl-4">
+                        <!-- Critical nodes will be dynamically inserted here -->
+                    </ul>
+                </div>
+                <div class="insights-section">
+                    <button id="generateInsightsButton" class="w-full btn-primary bg-purple-600 hover:bg-purple-700">
+                        Generate Network Insights ✨
+                    </button>
+                    <div id="insightsLoading" class="hidden text-center mt-4">
+                        <div class="spinner"></div>
+                        <p class="text-gray-600 text-sm mt-2">Generating insights...</p>
+                    </div>
+                    <div id="networkInsights" class="mt-4 p-3 border rounded-md bg-white text-gray-800 text-sm italic">
+                        Click "Generate Network Insights ✨" to get an AI-powered summary of your network structure and metadata.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Node Metadata Modal -->
+    <div id="nodeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Node Metadata</h3>
+                <button class="modal-close" id="closeNodeModal">&times;</button>
+            </div>
+            <form id="nodeForm">
+                <div class="form-group mb-4">
+                    <label for="nodeIdDisplay">Node ID:</label>
+                    <input type="text" id="nodeIdDisplay" class="font-mono bg-gray-100 cursor-not-allowed" readonly>
+                </div>
+                <div class="form-group mb-4">
+                    <label for="nodeName">Name:</label>
+                    <input type="text" id="nodeName" placeholder="Enter node name" required>
+                </div>
+                <div class="form-group mb-4">
+                    <label for="nodeDescription">Description:</label>
+                    <textarea id="nodeDescription" rows="4" placeholder="Enter node description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="deleteNodeButton" class="btn-secondary bg-red-500 text-white hover:bg-red-600">Delete Node</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Get references to canvas and its context
+        const canvas = document.getElementById('networkCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // Global variables for network data
+        let nodes = [];
+        let edges = [];
+        let nodeIdCounter = 0;
+
+        // Variables for interaction
+        let isDragging = false;
+        let draggingNode = null;
+        let offsetX, offsetY; // Offset for dragging to prevent jump
+        let connectMode = false;
+        let startNodeForConnection = null; // Stores the first node clicked in connect mode
+
+        // UI Elements
+        const addNodeButton = document.getElementById('addNodeButton');
+        const toggleConnectModeButton = document.getElementById('toggleConnectMode');
+        const clearAllButton = document.getElementById('clearAllButton');
+        const nodeModal = document.getElementById('nodeModal');
+        const closeNodeModalButton = document.getElementById('closeNodeModal');
+        const nodeForm = document.getElementById('nodeForm');
+        const nodeIdDisplay = document.getElementById('nodeIdDisplay');
+        const nodeNameInput = document.getElementById('nodeName');
+        const nodeDescriptionInput = document.getElementById('nodeDescription');
+        const deleteNodeButton = document.getElementById('deleteNodeButton');
+
+        // Summary Elements
+        const nodeCountSpan = document.getElementById('nodeCount');
+        const linkCountSpan = document.getElementById('linkCount');
+        const criticalNodesList = document.getElementById('criticalNodesList');
+        const generateInsightsButton = document.getElementById('generateInsightsButton');
+        const insightsLoading = document.getElementById('insightsLoading');
+        const networkInsightsDiv = document.getElementById('networkInsights');
+
+        // --- Canvas Drawing Functions ---
+
+        /**
+         * Resizes the canvas to fill its container.
+         * Redraws the network after resizing.
+         */
+        function resizeCanvas() {
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            drawNetwork();
+        }
+
+        /**
+         * Draws a single node on the canvas.
+         * @param {object} node - The node object {id, x, y, radius, color, metadata}
+         */
+        function drawNode(node) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+            ctx.fillStyle = node.color;
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Draw node ID or name
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const displayName = node.metadata.name || `Node ${node.id}`;
+            ctx.fillText(displayName, node.x, node.y);
+        }
+
+        /**
+         * Draws an edge between two nodes on the canvas.
+         * @param {object} edge - The edge object {fromNodeId, toNodeId}
+         */
+        function drawEdge(edge) {
+            const fromNode = nodes.find(n => n.id === edge.fromNodeId);
+            const toNode = nodes.find(n => n.id === edge.toNodeId);
+
+            if (fromNode && toNode) {
+                ctx.beginPath();
+                ctx.moveTo(fromNode.x, fromNode.y);
+                ctx.lineTo(toNode.x, toNode.y);
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.closePath();
+            }
+        }
+
+        /**
+         * Draws the entire network (nodes and edges) on the canvas.
+         */
+        function drawNetwork() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            // Draw all edges first
+            edges.forEach(drawEdge);
+
+            // Draw all nodes
+            nodes.forEach(drawNode);
+
+            // If in connect mode and a starting node is selected, draw a temporary line
+            if (connectMode && startNodeForConnection) {
+                ctx.beginPath();
+                ctx.moveTo(startNodeForConnection.x, startNodeForConnection.y);
+                ctx.lineTo(lastMousePos.x, lastMousePos.y); // Draw to current mouse position
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]); // Dashed line
+                ctx.stroke();
+                ctx.closePath();
+                ctx.setLineDash([]); // Reset line dash
+            }
+        }
+
+        // --- Node and Edge Management Functions ---
+
+        /**
+         * Adds a new node to the network.
+         * @param {number} x - X coordinate for the new node.
+         * @param {number} y - Y coordinate for the new node.
+         */
+        function addNode(x, y) {
+            nodeIdCounter++;
+            const newNode = {
+                id: nodeIdCounter,
+                x: x,
+                y: y,
+                radius: 20,
+                color: '#6366f1', // Indigo-500
+                metadata: {
+                    name: `Node ${nodeIdCounter}`,
+                    description: ''
+                }
+            };
+            nodes.push(newNode);
+            drawNetwork();
+            updateNetworkSummary();
+            openNodeModal(newNode); // Open modal for new node
+        }
+
+        /**
+         * Adds a new edge between two nodes.
+         * Ensures no duplicate edges.
+         * @param {number} fromNodeId - ID of the source node.
+         * @param {number} toNodeId - ID of the target node.
+         */
+        function addEdge(fromNodeId, toNodeId) {
+            if (fromNodeId === toNodeId) return; // Cannot connect a node to itself
+
+            // Check if edge already exists (bidirectional check)
+            const exists = edges.some(e =>
+                (e.fromNodeId === fromNodeId && e.toNodeId === toNodeId) ||
+                (e.fromNodeId === toNodeId && e.toNodeId === fromNodeId)
+            );
+
+            if (!exists) {
+                edges.push({ fromNodeId, toNodeId });
+                drawNetwork();
+                updateNetworkSummary();
+            } else {
+                console.log(`Edge already exists between Node ${fromNodeId} and Node ${toNodeId}`);
+            }
+        }
+
+        /**
+         * Clears all nodes and edges from the network.
+         */
+        function clearAll() {
+            nodes = [];
+            edges = [];
+            nodeIdCounter = 0;
+            startNodeForConnection = null;
+            connectMode = false;
+            toggleConnectModeButton.classList.remove('btn-toggle-active');
+            toggleConnectModeButton.classList.add('btn-toggle-inactive');
+            toggleConnectModeButton.textContent = 'Connect Mode: OFF';
+            drawNetwork();
+            updateNetworkSummary();
+            closeNodeModal(); // Close modal if open
+            networkInsightsDiv.textContent = 'Click "Generate Network Insights ✨" to get an AI-powered summary of your network structure and metadata.';
+        }
+
+        // --- Interaction Handlers ---
+
+        /**
+         * Gets the mouse position relative to the canvas.
+         * @param {MouseEvent} event - The mouse event.
+         * @returns {object} - Object with x and y coordinates.
+         */
+        function getMousePos(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        /**
+         * Finds a node at the given coordinates.
+         * @param {number} x - X coordinate.
+         * @param {number} y - Y coordinate.
+         * @returns {object|null} - The found node object or null.
+         */
+        function getNodeAt(x, y) {
+            for (let i = nodes.length - 1; i >= 0; i--) { // Iterate backwards to pick top-most node
+                const node = nodes[i];
+                const distance = Math.sqrt((x - node.x)**2 + (y - node.y)**2);
+                if (distance < node.radius) {
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        let lastMousePos = { x: 0, y: 0 }; // To track mouse position for temporary line drawing
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mousePos = getMousePos(e);
+            const clickedNode = getNodeAt(mousePos.x, mousePos.y);
+
+            if (connectMode) {
+                if (clickedNode) {
+                    // First click in connect mode: select starting node
+                    if (!startNodeForConnection) {
+                        startNodeForConnection = clickedNode;
+                        startNodeForConnection.color = '#ef4444'; // Red for selected
+                        drawNetwork();
+                    } else {
+                        // Second click in connect mode: create edge
+                        addEdge(startNodeForConnection.id, clickedNode.id);
+                        startNodeForConnection.color = '#6366f1'; // Reset color
+                        startNodeForConnection = null;
+                        drawNetwork();
+                    }
+                } else {
+                    // Clicked on empty space in connect mode, reset
+                    if (startNodeForConnection) {
+                        startNodeForConnection.color = '#6366f1'; // Reset color
+                    }
+                    startNodeForConnection = null;
+                    drawNetwork();
+                }
+            } else { // Normal drag mode
+                if (clickedNode) {
+                    isDragging = true;
+                    draggingNode = clickedNode;
+                    offsetX = mousePos.x - draggingNode.x;
+                    offsetY = mousePos.y - draggingNode.y;
+                    // Bring the dragged node to the front for drawing
+                    nodes = nodes.filter(n => n.id !== draggingNode.id);
+                    nodes.push(draggingNode);
+                    drawNetwork();
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            lastMousePos = getMousePos(e); // Update last mouse position for temporary line
+            if (isDragging && draggingNode) {
+                const mousePos = lastMousePos;
+                draggingNode.x = mousePos.x - offsetX;
+                draggingNode.y = mousePos.y - offsetY;
+                drawNetwork();
+            } else if (connectMode && startNodeForConnection) {
+                drawNetwork(); // Redraw to update the temporary line
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggingNode = null;
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            // If mouse leaves canvas while dragging, stop dragging
+            if (isDragging) {
+                isDragging = false;
+                draggingNode = null;
+            }
+            // If connect mode active, stop drawing temporary line
+            if (connectMode && startNodeForConnection) {
+                startNodeForConnection.color = '#6366f1'; // Reset color
+                startNodeForConnection = null;
+                drawNetwork();
+            }
+        });
+
+        // Handle double-click to open metadata modal
+        canvas.addEventListener('dblclick', (e) => {
+            const mousePos = getMousePos(e);
+            const clickedNode = getNodeAt(mousePos.x, mousePos.y);
+            if (clickedNode) {
+                openNodeModal(clickedNode);
+            }
+        });
+
+        // --- UI Event Listeners ---
+
+        addNodeButton.addEventListener('click', () => {
+            // Add node at a random central location for easy visibility
+            const x = canvas.width / 2 + (Math.random() - 0.5) * 100;
+            const y = canvas.height / 2 + (Math.random() - 0.5) * 100;
+            addNode(x, y);
+        });
+
+        toggleConnectModeButton.addEventListener('click', () => {
+            connectMode = !connectMode;
+            if (connectMode) {
+                toggleConnectModeButton.classList.remove('btn-toggle-inactive');
+                toggleConnectModeButton.classList.add('btn-toggle-active');
+                toggleConnectModeButton.textContent = 'Connect Mode: ON';
+                // Reset any active connection attempt when toggling mode
+                if (startNodeForConnection) {
+                    startNodeForConnection.color = '#6366f1';
+                    startNodeForConnection = null;
+                    drawNetwork();
+                }
+            } else {
+                toggleConnectModeButton.classList.remove('btn-toggle-active');
+                toggleConnectModeButton.classList.add('btn-toggle-inactive');
+                toggleConnectModeButton.textContent = 'Connect Mode: OFF';
+                // Reset any active connection attempt when toggling mode
+                if (startNodeForConnection) {
+                    startNodeForConnection.color = '#6366f1';
+                    startNodeForConnection = null;
+                    drawNetwork();
+                }
+            }
+        });
+
+        clearAllButton.addEventListener('click', () => {
+            // Custom confirmation dialog (since alert() is not allowed)
+            const confirmClear = document.createElement('div');
+            confirmClear.className = 'modal open'; // Use modal styles
+            confirmClear.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Confirm Clear All</h3>
+                        <button class="modal-close" id="confirmClearClose">&times;</button>
+                    </div>
+                    <p class="mb-4 text-gray-700">Are you sure you want to clear all nodes and links?</p>
+                    <div class="form-actions">
+                        <button id="cancelClearButton" class="btn-secondary">Cancel</button>
+                        <button id="confirmClearButton" class="btn-primary bg-red-600 hover:bg-red-700">Clear All</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmClear);
+
+            document.getElementById('confirmClearButton').addEventListener('click', () => {
+                clearAll();
+                document.body.removeChild(confirmClear);
+            });
+            document.getElementById('cancelClearButton').addEventListener('click', () => {
+                document.body.removeChild(confirmClear);
+            });
+            document.getElementById('confirmClearClose').addEventListener('click', () => {
+                document.body.removeChild(confirmClear);
+            });
+        });
+
+        // --- Node Metadata Modal Functions ---
+
+        let currentEditingNode = null;
+
+        /**
+         * Opens the node metadata modal and populates it with node data.
+         * @param {object} node - The node object to edit.
+         */
+        function openNodeModal(node) {
+            currentEditingNode = node;
+            nodeIdDisplay.value = node.id;
+            nodeNameInput.value = node.metadata.name;
+            nodeDescriptionInput.value = node.metadata.description;
+            nodeModal.classList.add('open');
+        }
+
+        /**
+         * Closes the node metadata modal.
+         */
+        function closeNodeModal() {
+            currentEditingNode = null;
+            nodeModal.classList.remove('open');
+            nodeForm.reset();
+            drawNetwork(); // Redraw to ensure node name updates if changed
+        }
+
+        closeNodeModalButton.addEventListener('click', closeNodeModal);
+
+        nodeForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default form submission
+
+            if (currentEditingNode) {
+                currentEditingNode.metadata.name = nodeNameInput.value;
+                currentEditingNode.metadata.description = nodeDescriptionInput.value;
+                updateNetworkSummary(); // Update summary in case names affect centrality display
+                closeNodeModal();
+            }
+        });
+
+        deleteNodeButton.addEventListener('click', () => {
+            if (currentEditingNode) {
+                // Custom confirmation dialog for delete
+                const confirmDelete = document.createElement('div');
+                confirmDelete.className = 'modal open'; // Use modal styles
+                confirmDelete.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Confirm Delete Node</h3>
+                            <button class="modal-close" id="confirmDeleteClose">&times;</button>
+                        </div>
+                        <p class="mb-4 text-gray-700">Are you sure you want to delete Node ID: ${currentEditingNode.id}?</p>
+                        <div class="form-actions">
+                            <button id="cancelDeleteButton" class="btn-secondary">Cancel</button>
+                            <button id="confirmDeleteButton" class="btn-primary bg-red-600 hover:bg-red-700">Delete</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(confirmDelete);
+
+                document.getElementById('confirmDeleteButton').addEventListener('click', () => {
+                    // Remove node
+                    nodes = nodes.filter(node => node.id !== currentEditingNode.id);
+                    // Remove associated edges
+                    edges = edges.filter(edge =>
+                        edge.fromNodeId !== currentEditingNode.id &&
+                        edge.toNodeId !== currentEditingNode.id
+                    );
+                    document.body.removeChild(confirmDelete);
+                    closeNodeModal();
+                    drawNetwork();
+                    updateNetworkSummary();
+                });
+                document.getElementById('cancelDeleteButton').addEventListener('click', () => {
+                    document.body.removeChild(confirmDelete);
+                });
+                document.getElementById('confirmDeleteClose').addEventListener('click', () => {
+                    document.body.removeChild(confirmDelete);
+                });
+            }
+        });
+
+        // Close modal if clicked outside content
+        nodeModal.addEventListener('click', (e) => {
+            if (e.target === nodeModal) {
+                closeNodeModal();
+            }
+        });
+
+        // --- Network Summary Calculation ---
+
+        /**
+         * Calculates degree centrality for all nodes and updates the summary display.
+         */
+        function updateNetworkSummary() {
+            nodeCountSpan.textContent = nodes.length;
+            linkCountSpan.textContent = edges.length;
+
+            const degreeCentrality = {};
+            nodes.forEach(node => {
+                degreeCentrality[node.id] = 0;
+            });
+
+            edges.forEach(edge => {
+                if (degreeCentrality[edge.fromNodeId] !== undefined) {
+                    degreeCentrality[edge.fromNodeId]++;
+                }
+                if (degreeCentrality[edge.toNodeId] !== undefined) {
+                    degreeCentrality[edge.toNodeId]++;
+                }
+            });
+
+            // Convert to array of {nodeId, degree} and sort by degree
+            const sortedCentrality = Object.keys(degreeCentrality)
+                .map(nodeId => ({
+                    nodeId: parseInt(nodeId),
+                    degree: degreeCentrality[nodeId]
+                }))
+                .sort((a, b) => b.degree - a.degree); // Descending order
+
+            // Display critical nodes (top 5 or all if less than 5)
+            criticalNodesList.innerHTML = '';
+            if (sortedCentrality.length === 0) {
+                criticalNodesList.innerHTML = '<li class="text-gray-500">No nodes to display.</li>';
+            } else {
+                sortedCentrality.slice(0, Math.min(sortedCentrality.length, 5)).forEach(item => {
+                    const node = nodes.find(n => n.id === item.nodeId);
+                    const nodeName = node ? (node.metadata.name || `Node ${node.id}`) : `Node ${item.nodeId}`;
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${nodeName} (Degree: ${item.degree})`;
+                    criticalNodesList.appendChild(listItem);
+                });
+            }
+        }
+
+        // --- Gemini API Integration for Network Insights ---
+
+        generateInsightsButton.addEventListener('click', generateNetworkInsights);
+
+        /**
+         * Generates network insights using the Gemini API based on current network data.
+         */
+        async function generateNetworkInsights() {
+            if (nodes.length === 0) {
+                networkInsightsDiv.textContent = "Please add some nodes and links to your network first to generate insights.";
+                return;
+            }
+
+            insightsLoading.classList.remove('hidden');
+            generateInsightsButton.disabled = true;
+            networkInsightsDiv.textContent = ''; // Clear previous insights
+
+            const networkData = {
+                nodes: nodes.map(n => ({
+                    id: n.id,
+                    name: n.metadata.name,
+                    description: n.metadata.description
+                })),
+                edges: edges.map(e => ({
+                    from: e.fromNodeId,
+                    to: e.toNodeId
+                }))
+            };
+
+            // Construct the prompt for the LLM
+            let prompt = "Analyze the following network data and provide a concise summary, identifying any notable patterns, central nodes, potential communities, or general interpretations of its purpose. Focus on connections and node metadata. If there are no connections, state that.\n\n";
+            prompt += `Total Nodes: ${nodes.length}\n`;
+            prompt += `Total Links: ${edges.length}\n\n`;
+
+            prompt += "Nodes:\n";
+            networkData.nodes.forEach(node => {
+                prompt += `- ID: ${node.id}, Name: '${node.name}'`;
+                if (node.description) {
+                    prompt += `, Description: '${node.description}'`;
+                }
+                prompt += '\n';
+            });
+            prompt += "\n";
+
+            if (networkData.edges.length > 0) {
+                prompt += "Links:\n";
+                networkData.edges.forEach(edge => {
+                    prompt += `- Node ${edge.from} <-> Node ${edge.to}\n`;
+                });
+            } else {
+                prompt += "No links exist in this network.\n";
+            }
+            prompt += "\nBased on this data, provide your analysis and insights:";
+
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            try {
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide the API key
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    networkInsightsDiv.textContent = text;
+                } else {
+                    networkInsightsDiv.textContent = "Could not generate insights. Unexpected API response structure.";
+                }
+            } catch (error) {
+                console.error('Error generating network insights:', error);
+                networkInsightsDiv.textContent = `Error generating insights: ${error.message}. Please try again.`;
+            } finally {
+                insightsLoading.classList.add('hidden');
+                generateInsightsButton.disabled = false;
+            }
+        }
+
+        // --- Initial Setup ---
+
+        // Initial resize and draw when the window loads
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            updateNetworkSummary();
+        });
+
+        // Resize canvas when window is resized
+        window.addEventListener('resize', resizeCanvas);
+
+    </script>
+</body>
+</html>
