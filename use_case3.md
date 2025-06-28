@@ -1,7 +1,7 @@
 ---
 layout: page
 title: "Silhouette Scores - reimagined"
-permalink: /use_case2/
+permalink: /use_case3/
 ---
 
 # How might we interpret and validate clusterings in a visual way, leveraging 3D plots? 
