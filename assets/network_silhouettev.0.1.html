@@ -235,7 +235,6 @@
             ctx.lineTo(cx, cy - outerRadius);
             ctx.closePath();
             ctx.fill();
-            // No stroke for star unless explicitly requested, as it was only for old circle highlight
         }
 
         // --- Data Generation Functions ---
@@ -409,21 +408,23 @@
 
         /**
          * Draws the data points on the data canvas, color-coded by cluster assignment.
+         * The currently highlighted point (if any) is drawn last to ensure it's on top.
          * @param {Array<object>} data - The array of data points.
          * @param {Array<number>} assignments - The cluster assignments for each data point.
          */
         function drawData(data, assignments) {
             clearDataCanvas();
+
+            let highlightedPointData = null;
+            let highlightedPointIndex = -1;
+
+            // First, draw all non-highlighted points
             data.forEach((point, i) => {
                 const clusterIndex = assignments[i];
-
-                // Check if this point is the currently highlighted one
                 const isHighlighted = (currentlyHighlightedSilhouetteItem && currentlyHighlightedSilhouetteItem.originalPointIndex === i);
 
                 if (isHighlighted) {
-                    dataCtx.fillStyle = highlightedPointColor; // Use the dedicated highlight color
-                    // Draw a star shape for the highlighted point
-                    drawStar(dataCtx, point.x, point.y, highlightedPointSize, highlightedPointSize * 0.4, 5); // 5-pointed star
+                    highlightedPointData = { point: point, index: i, cluster: clusterIndex };
                 } else {
                     // Draw regular point
                     if (clusterIndex !== -1 && colors[clusterIndex]) {
@@ -437,18 +438,11 @@
                 }
             });
 
-            // Optionally, draw centroids
-            /*
-            centroids.forEach((centroid, i) => {
-                dataCtx.fillStyle = '#000000'; // Black for centroids
-                dataCtx.beginPath();
-                dataCtx.arc(centroid.x, centroid.y, pointSize * 2, 0, Math.PI * 2); // Larger for visibility
-                dataCtx.fill();
-                dataCtx.strokeStyle = colors[i] || '#6B7280';
-                dataCtx.lineWidth = 2;
-                dataCtx.stroke();
-            });
-            */
+            // Then, draw the highlighted point (if any) on top
+            if (highlightedPointData) {
+                dataCtx.fillStyle = highlightedPointColor; // Use the dedicated highlight color
+                drawStar(dataCtx, highlightedPointData.point.x, highlightedPointData.point.y, highlightedPointSize, highlightedPointSize * 0.4, 5);
+            }
         }
 
         /**
