@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Tree Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top to make space for game area */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        canvas {
+            border: 1px solid #e2e8f0;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            touch-action: manipulation; /* Prevent default touch actions like double-tap zoom */
+            width: 100%; /* Make canvas responsive */
+            height: auto; /* Maintain aspect ratio */
+            min-height: 300px; /* Ensure a minimum height for the canvas */
+        }
+        .control-panel, .score-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+        .button-primary {
+            background-color: #4f46e5;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .button-primary:hover {
+            background-color: #4338ca;
+            transform: translateY(-1px);
+        }
+        .button-primary:active {
+            transform: translateY(0);
+        }
+        .button-secondary {
+            background-color: #cbd5e1;
+            color: #475569;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .button-secondary:hover {
+            background-color: #aebacd;
+            transform: translateY(-1px);
+        }
+        .button-secondary:active {
+            transform: translateY(0);
+        }
+        input[type="number"] {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 80px;
+            text-align: center;
+        }
+        .player-score {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .player-alice { /* Renamed for consistency in CSS, but now represents Smaug */
+            background-color: #ecfdf5; /* green-50 */
+            color: #047857; /* green-700 */
+        }
+        .player-bob { /* Renamed for consistency in CSS, but now represents Bilbo */
+            background-color: #fff7ed; /* orange-50 */
+            color: #c2410c; /* orange-700 */
+        }
+        .current-player {
+            box-shadow: 0 0 0 3px #6366f1; /* ring-indigo-500 */
+        }
+        .message {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700;
+            text-align: center;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8 flex justify-center items-start min-h-screen">
+    <div class="container mx-auto p-6 bg-white rounded-2xl shadow-xl flex flex-col gap-6 max-w-3xl">
+        <h1 class="text-3xl font-extrabold text-gray-900 text-center mb-4">Gold Tree Game</h1>
+
+        <!-- Control Panel -->
+        <div class="control-panel flex flex-col sm:flex-row items-center justify-center gap-4 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <label for="numNodes" class="text-gray-700 text-lg font-medium">Number of Nodes:</label>
+            <input type="number" id="numNodes" value="10" min="2" max="20" class="input-field border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg text-center w-24">
+            <button id="generateTreeBtn" class="button-primary flex-grow sm:flex-grow-0">Generate New Tree</button>
+            <button id="newGameBtn" class="button-secondary flex-grow sm:flex-grow-0">Restart Game</button>
+        </div>
+
+        <!-- Score and Status Display -->
+        <div class="score-panel flex flex-col sm:flex-row justify-around items-center gap-4 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <div id="aliceScoreDisplay" class="player-score player-alice rounded-xl transition-all duration-300">
+                Smaug Gold: 0
+            </div>
+            <div id="bobScoreDisplay" class="player-score player-bob rounded-xl transition-all duration-300">
+                Bilbo Gold: 0
+            </div>
+        </div>
+
+        <div id="gameMessage" class="message text-indigo-700">
+            Click 'Generate New Tree' to start!
+        </div>
+
+        <!-- Canvas for Tree Visualization -->
+        <canvas id="gameCanvas" class="w-full h-96"></canvas>
+    </div>
+
+    <script>
+        // Canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const numNodesInput = document.getElementById('numNodes');
+        const generateTreeBtn = document.getElementById('generateTreeBtn');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const aliceScoreDisplay = document.getElementById('aliceScoreDisplay'); // Still using original ID for DOM access
+        const bobScoreDisplay = document.getElementById('bobScoreDisplay');     // Still using original ID for DOM access
+        const gameMessage = document.getElementById('gameMessage');
+
+        // Game State Variables
+        let nodes = [];
+        let edges = [];
+        let smaugScore = 0; // Renamed for Smaug
+        let bilboScore = 0; // Renamed for Bilbo
+        let playerTurn = true; // true for Smaug, false for Bilbo
+        let gameOver = true;
+        let nodeCount = 0; // Number of nodes for the current game
+
+        // Constants for drawing
+        const NODE_RADIUS = 20;
+        const NODE_COLOR = '#60a5fa'; // blue-400
+        const LEAF_COLOR = '#a78bfa'; // violet-400
+        const ACTIVE_LEAF_COLOR = '#c084fc'; // purple-400
+        const REMOVED_COLOR = '#e5e7eb'; // gray-200
+        const TEXT_COLOR = '#1f2937'; // gray-800
+        const EDGE_COLOR = '#9ca3af'; // gray-400
+        const CANVAS_PADDING_X = 40; // Horizontal padding from canvas edges
+        const CANVAS_PADDING_Y = 40; // Vertical padding from canvas edges
+
+        /**
+         * Initializes the game by setting up event listeners and resetting the state.
+         * Called when the window loads.
+         */
+        window.onload = function() {
+            // Adjust canvas size based on its actual CSS size
+            function resizeCanvas() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                if (!gameOver) {
+                    // Recalculate node positions if the canvas resizes during gameplay
+                    layoutTreeHierarchically();
+                    drawTree(); // Redraw if game is active
+                } else if (nodes.length > 0) {
+                    // If game is over but a tree was drawn, redraw on resize to keep positions relative
+                    layoutTreeHierarchically();
+                    drawTree();
+                }
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas(); // Initial resize
+
+            generateTreeBtn.addEventListener('click', () => {
+                const requestedNodes = parseInt(numNodesInput.value, 10);
+                if (isNaN(requestedNodes) || requestedNodes < 2 || requestedNodes > 20) {
+                    // Use a custom message box instead of alert()
+                    displayMessage("Please enter a number of nodes between 2 and 20.", '#dc2626', 2000);
+                    return;
+                }
+                startGame(requestedNodes);
+            });
+
+            newGameBtn.addEventListener('click', () => {
+                startGame(nodeCount); // Restart with the same number of nodes
+            });
+
+            canvas.addEventListener('click', handleCanvasClick);
+
+            updateUI(); // Initial UI update
+        };
+
+        /**
+         * Displays a temporary message in the game message area.
+         * @param {string} message - The message to display.
+         * @param {string} color - The text color for the message.
+         * @param {number} duration - How long the message should be displayed in milliseconds.
+         */
+        function displayMessage(message, color, duration) {
+            gameMessage.textContent = message;
+            gameMessage.style.color = color;
+            setTimeout(() => {
+                updateUI(); // Revert message to normal after duration
+            }, duration);
+        }
+
+        /**
+         * Starts a new game with a specified number of nodes.
+         * @param {number} numNodes - The number of nodes for the new tree.
+         */
+        function startGame(numNodes) {
+            nodeCount = numNodes;
+            smaugScore = 0; // Reset Smaug's score
+            bilboScore = 0; // Reset Bilbo's score
+            playerTurn = true; // Smaug starts
+            gameOver = false;
+            generateRandomTree(numNodes);
+            layoutTreeHierarchically(); // Use hierarchical layout instead of random positioning
+            drawTree();
+            updateUI();
+        }
+
+        /**
+         * Generates a random tree structure.
+         * The tree is guaranteed to be connected.
+         * Each node gets a random gold amount.
+         * @param {number} numNodes - The total number of nodes in the tree.
+         */
+        function generateRandomTree(numNodes) {
+            nodes = [];
+            edges = [];
+
+            // Create nodes
+            for (let i = 0; i < numNodes; i++) {
+                nodes.push({
+                    id: i,
+                    gold: Math.floor(Math.random() * 10) + 1, // Gold between 1 and 10
+                    neighbors: [], // Adjacency list
+                    x: 0, y: 0, // Will be set by positioning algorithm
+                    isRemoved: false,
+                    isLeaf: false, // Will be set by updateLeafStatus
+                    level: 0 // Will be set by layoutTreeHierarchically
+                });
+            }
+
+            // Create a connected tree structure (randomly add edges)
+            if (numNodes > 1) {
+                // To ensure connectivity and tree structure (no cycles),
+                // connect each new node to a randomly chosen existing node.
+                for (let i = 1; i < numNodes; i++) {
+                    const parentId = Math.floor(Math.random() * i); // Connect to any node from 0 to i-1
+                    nodes[i].neighbors.push(parentId);
+                    nodes[parentId].neighbors.push(i);
+                    edges.push({ from: parentId, to: i });
+                }
+            }
+            // For a single node, it's a leaf by definition and has no neighbors
+            if (numNodes === 1) {
+                nodes[0].neighbors = [];
+            }
+
+            updateLeafStatus();
+        }
+
+        /**
+         * Calculates and updates the `isLeaf` property for all nodes.
+         * A node is a leaf if it is not removed and has only one non-removed neighbor,
+         * or if it's the only non-removed node left (0 non-removed neighbors).
+         */
+        function updateLeafStatus() {
+            const activeNodes = nodes.filter(node => !node.isRemoved);
+            if (activeNodes.length === 1) {
+                activeNodes[0].isLeaf = true; // The last remaining node is always considered a leaf
+                return;
+            } else if (activeNodes.length === 0) {
+                // No active nodes left, no leaves
+                nodes.forEach(node => node.isLeaf = false);
+                return;
+            }
+
+            nodes.forEach(node => {
+                if (node.isRemoved) {
+                    node.isLeaf = false; // Removed nodes cannot be leaves
+                    return;
+                }
+                // Count active neighbors
+                let activeNeighborsCount = 0;
+                node.neighbors.forEach(neighborId => {
+                    if (!nodes[neighborId].isRemoved) {
+                        activeNeighborsCount++;
+                    }
+                });
+                node.isLeaf = (activeNeighborsCount === 1); // A leaf has exactly one active neighbor
+            });
+        }
+
+        /**
+         * Lays out the tree nodes hierarchically starting from node 0 as the root.
+         * Uses a BFS-like approach to determine levels and then positions nodes.
+         */
+        function layoutTreeHierarchically() {
+            if (nodes.length === 0) return;
+
+            // Reset levels and visited status
+            nodes.forEach(node => {
+                node.level = -1; // -1 indicates unvisited
+                node.x = 0;
+                node.y = 0;
+            });
+
+            // Use node 0 as the root for layout purposes
+            const rootId = 0;
+            const queue = [{ id: rootId, level: 0 }];
+            const visited = new Set();
+            visited.add(rootId);
+            nodes[rootId].level = 0;
+
+            let maxLevel = 0;
+            const nodesByLevel = [];
+
+            // BFS to determine levels
+            while (queue.length > 0) {
+                const { id, level } = queue.shift();
+                nodes[id].level = level;
+                if (!nodesByLevel[level]) {
+                    nodesByLevel[level] = [];
+                }
+                nodesByLevel[level].push(nodes[id]);
+                maxLevel = Math.max(maxLevel, level);
+
+                // Explore neighbors
+                nodes[id].neighbors.forEach(neighborId => {
+                    // Only consider active (not removed) neighbors
+                    if (!nodes[neighborId].isRemoved && !visited.has(neighborId)) {
+                        visited.add(neighborId);
+                        queue.push({ id: neighborId, level: level + 1 });
+                    }
+                });
+            }
+
+            // Calculate spacing and position nodes
+            const availableWidth = canvas.width - 2 * CANVAS_PADDING_X;
+            const availableHeight = canvas.height - 2 * CANVAS_PADDING_Y;
+
+            // Ensure there's at least one level for spacing calculation, even if only root exists
+            const levelsCount = maxLevel + 1;
+            const verticalSpacing = availableHeight / (levelsCount > 0 ? levelsCount : 1);
+
+            nodesByLevel.forEach((levelNodes, levelIndex) => {
+                if (!levelNodes) return; // Skip if no nodes on this level
+
+                const horizontalSpacing = availableWidth / (levelNodes.length + 1); // +1 for symmetric spacing
+
+                // Sort nodes within a level to ensure consistent ordering,
+                // perhaps by their original ID or some other stable criteria if desired.
+                // For now, let's keep the order determined by BFS queue processing.
+                levelNodes.forEach((node, indexInLevel) => {
+                    node.x = CANVAS_PADDING_X + (indexInLevel + 1) * horizontalSpacing;
+                    node.y = CANVAS_PADDING_Y + (levelIndex + 0.5) * verticalSpacing; // Center vertically within its level band
+                });
+            });
+        }
+
+
+        /**
+         * Draws the current state of the tree on the canvas.
+         * Includes nodes, edges, gold amounts, and highlights leaves.
+         */
+        function drawTree() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            // Draw edges
+            edges.forEach(edge => {
+                const fromNode = nodes[edge.from];
+                const toNode = nodes[edge.to];
+
+                // Only draw edges between active nodes
+                if (!fromNode.isRemoved && !toNode.isRemoved) {
+                    ctx.beginPath();
+                    ctx.moveTo(fromNode.x, fromNode.y);
+                    ctx.lineTo(toNode.x, toNode.y);
+                    ctx.strokeStyle = EDGE_COLOR;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+
+            // Draw nodes
+            nodes.forEach(node => {
+                if (node.isRemoved) {
+                    ctx.fillStyle = REMOVED_COLOR;
+                    ctx.strokeStyle = REMOVED_COLOR;
+                } else if (node.isLeaf) {
+                    ctx.fillStyle = LEAF_COLOR;
+                    ctx.strokeStyle = ACTIVE_LEAF_COLOR;
+                    ctx.lineWidth = 3;
+                } else {
+                    ctx.fillStyle = NODE_COLOR;
+                    ctx.strokeStyle = NODE_COLOR;
+                    ctx.lineWidth = 2;
+                }
+
+                // Draw circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw gold text
+                ctx.fillStyle = TEXT_COLOR;
+                ctx.font = 'bold 12px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(node.gold.toString(), node.x, node.y);
+
+                // Draw node ID (optional, for debugging)
+                // ctx.fillStyle = '#ffffff';
+                // ctx.font = '8px Inter';
+                // ctx.fillText(node.id.toString(), node.x, node.y + NODE_RADIUS + 8);
+            });
+        }
+
+        /**
+         * Handles clicks on the canvas to select and remove leaves.
+         * @param {MouseEvent} event - The click event object.
+         */
+        function handleCanvasClick(event) {
+            if (gameOver) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;    // Relationship between CSS pixels and canvas pixels
+            const scaleY = canvas.height / rect.height;  // for high-DPI screens or scaled canvases
+            const mouseX = (event.clientX - rect.left) * scaleX;
+            const mouseY = (event.clientY - rect.top) * scaleY;
+
+            let clickedNode = null;
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                if (node.isRemoved) continue; // Cannot click removed nodes
+
+                const dist = Math.sqrt(Math.pow(mouseX - node.x, 2) + Math.pow(mouseY - node.y, 2));
+                if (dist < NODE_RADIUS) {
+                    clickedNode = node;
+                    break;
+                }
+            }
+
+            if (clickedNode && clickedNode.isLeaf) {
+                removeLeaf(clickedNode.id);
+            } else if (clickedNode) {
+                displayMessage("That's not a leaf! Please select a leaf.", '#dc2626', 1500);
+            }
+        }
+
+        /**
+         * Removes a leaf node from the tree and updates scores.
+         * @param {number} nodeId - The ID of the node to remove.
+         */
+        function removeLeaf(nodeId) {
+            const nodeToRemove = nodes[nodeId];
+
+            if (nodeToRemove.isRemoved || !nodeToRemove.isLeaf) {
+                return; // Not a valid leaf or already removed
+            }
+
+            // Add gold to current player's score
+            if (playerTurn) {
+                smaugScore += nodeToRemove.gold; // Add gold to Smaug
+            } else {
+                bilboScore += nodeToRemove.gold; // Add gold to Bilbo
+            }
+
+            nodeToRemove.isRemoved = true; // Mark as removed
+
+            // Update leaf status for remaining nodes (especially neighbors of the removed node)
+            updateLeafStatus();
+            // Re-layout the tree as removing a node might change the structure and optimal positions
+            layoutTreeHierarchically();
+
+            // Check if all active nodes are removed
+            const remainingActiveNodes = nodes.filter(node => !node.isRemoved);
+            if (remainingActiveNodes.length === 0) {
+                endGame();
+            } else {
+                playerTurn = !playerTurn; // Switch turn
+                drawTree();
+                updateUI();
+            }
+        }
+
+        /**
+         * Ends the game, determines the winner, and displays the final message.
+         */
+        function endGame() {
+            gameOver = true;
+            drawTree(); // Final draw showing all removed nodes
+            updateUI(); // Ensure scores are up-to-date
+
+            let winnerMessage = '';
+            if (smaugScore > bilboScore) { // Compare Smaug's and Bilbo's scores
+                winnerMessage = 'Smaug wins!';
+                displayMessage(`Game Over! ${winnerMessage} Smaug: ${smaugScore}, Bilbo: ${bilboScore}`, '#047857', 0); // 0 duration means permanent
+            } else if (bilboScore > smaugScore) { // Compare Bilbo's and Smaug's scores
+                winnerMessage = 'Bilbo wins!';
+                displayMessage(`Game Over! ${winnerMessage} Smaug: ${smaugScore}, Bilbo: ${bilboScore}`, '#c2410c', 0);
+            } else {
+                winnerMessage = "It's a tie!";
+                displayMessage(`Game Over! ${winnerMessage} Smaug: ${smaugScore}, Bilbo: ${bilboScore}`, '#1d4ed8', 0);
+            }
+        }
+
+        /**
+         * Updates the UI elements (scores, current player message).
+         */
+        function updateUI() {
+            aliceScoreDisplay.textContent = `Smaug Gold: ${smaugScore}`; // Update Smaug's score display
+            bobScoreDisplay.textContent = `Bilbo Gold: ${bilboScore}`; // Update Bilbo's score display
+
+            // Highlight current player
+            if (playerTurn) {
+                aliceScoreDisplay.classList.add('current-player');
+                bobScoreDisplay.classList.remove('current-player');
+            } else {
+                bobScoreDisplay.classList.add('current-player');
+                aliceScoreDisplay.classList.remove('current-player');
+            }
+
+            if (gameOver) {
+                // Message is set by endGame()
+                generateTreeBtn.disabled = false;
+                numNodesInput.disabled = false;
+            } else {
+                gameMessage.textContent = `${playerTurn ? 'Smaug' : 'Bilbo'}'s turn. Click a leaf!`; // Update turn message
+                gameMessage.style.color = playerTurn ? '#047857' : '#c2410c'; // Green for Smaug, Orange for Bilbo
+                generateTreeBtn.disabled = true;
+                numNodesInput.disabled = true;
+            }
+        }
+    </script>
+</body>
+</html>
