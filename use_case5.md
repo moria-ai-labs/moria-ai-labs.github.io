@@ -6,7 +6,7 @@ permalink: /use_case5/
 
 # How might we visualize the edit distance procedure? 
 
-<iframe src="/assets/edit_distance.v.0.0.html" width="100%" height="600" frameborder="0"></iframe>
+<iframe src="/assets/graph_edit_distance.v.0.0.html" width="100%" height="600" frameborder="0"></iframe>
 
 
 # How might we visualize the GRAPH edit distance procedure? 
