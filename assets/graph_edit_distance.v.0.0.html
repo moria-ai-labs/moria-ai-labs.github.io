@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Edit Distance Calculator (Heuristic)</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the graph visualization */
+        body { font-family: "Inter", sans-serif; }
+        svg line { stroke: #6b7280; stroke-width: 2; }
+        svg text { font-size: 14px; fill: #1f2937; user-select: none; }
+        svg circle { stroke: #4f46e5; stroke-width: 2; fill: #a78bfa; } /* Node circle styling */
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-6 flex flex-col items-center min-h-screen">
+    <div class="max-w-4xl w-full bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+        <h1 class="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6 text-gray-800">Graph Edit Distance Calculator (Heuristic)</h1>
+
+        <p class="mb-3 text-gray-700 text-sm sm:text-base">
+            This tool calculates an <strong>approximate graph edit distance</strong> between two randomly generated graphs using a heuristic approach.
+            Graph edit distance is generally an NP-hard problem, meaning exact computation is computationally intensive for large graphs.
+            This heuristic estimates the cost of transforming one graph into another by considering differences in:
+        </p>
+        <ul class="list-disc list-inside mb-4 sm:mb-6 text-gray-600 text-sm sm:text-base">
+            <li><strong>Vertex Label Distribution:</strong> Differences in the counts of each unique vertex label between the two graphs.</li>
+            <li><strong>Edge Pattern Distribution:</strong> Differences in the counts of each unique edge "pattern." An edge pattern is defined by the labels of its two connected vertices (sorted alphabetically) and the edge's own label (e.g., "A-B_X" for an edge between an 'A' and a 'B' vertex with label 'X').</li>
+        </ul>
+        <p class="mb-4 sm:mb-6 text-gray-700 text-sm sm:text-base">
+            The costs for each elementary operation (vertex/edge insertion or deletion) are predefined as 1 for simplicity. Vertex and edge substitutions are implicitly handled as a deletion of one type and an insertion of another matching type.
+        </p>
+
+        <div class="flex flex-col md:flex-row gap-4 sm:gap-6 mb-6">
+            <div class="flex-1 bg-gray-50 p-4 rounded-md border border-gray-200">
+                <h2 class="text-lg sm:text-xl font-semibold mb-2 text-gray-800">Graph 1</h2>
+                <div id="graph1-container" class="w-full h-48 sm:h-64 border border-gray-300 rounded-md flex items-center justify-center bg-white overflow-hidden">
+                    <!-- SVG for Graph 1 will be rendered here -->
+                </div>
+                <div id="graph1-details" class="mt-2 text-xs sm:text-sm text-gray-600"></div>
+            </div>
+            <div class="flex-1 bg-gray-50 p-4 rounded-md border border-gray-200">
+                <h2 class="text-lg sm:text-xl font-semibold mb-2 text-gray-800">Graph 2</h2>
+                <div id="graph2-container" class="w-full h-48 sm:h-64 border border-gray-300 rounded-md flex items-center justify-center bg-white overflow-hidden">
+                    <!-- SVG for Graph 2 will be rendered here -->
+                </div>
+                <div id="graph2-details" class="mt-2 text-xs sm:text-sm text-gray-600"></div>
+            </div>
+        </div>
+
+        <div class="flex justify-center mb-6">
+            <button id="generate-graphs-btn" class="px-5 py-2 sm:px-6 sm:py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 text-sm sm:text-base">
+                Generate New Graphs & Calculate Distance
+            </button>
+        </div>
+
+        <div id="distance-result" class="text-center text-xl sm:text-2xl font-bold text-gray-800 p-3 sm:p-4 bg-indigo-50 rounded-md border border-indigo-200">
+            Distance: <span id="calculated-distance">N/A</span>
+        </div>
+    </div>
+
+    <script>
+        // --- Graph Data Structures ---
+        /**
+         * Represents a single vertex in a graph.
+         */
+        class Vertex {
+            constructor(id, label) {
+                this.id = id;       // Unique identifier for the vertex
+                this.label = label; // Label (e.g., 'v1', 'v2')
+            }
+        }
+
+        /**
+         * Represents a single edge in a graph. Assumes undirected for this problem.
+         */
+        class Edge {
+            constructor(id, sourceId, targetId, label) {
+                this.id = id;         // Unique identifier for the edge
+                this.source = sourceId; // ID of the source vertex
+                this.target = targetId; // ID of the target vertex
+                this.label = label;   // Label (e.g., 'e1', 'e2')
+            }
+        }
+
+        /**
+         * Represents a graph using adjacency lists and maps for vertices and edges.
+         */
+        class Graph {
+            constructor() {
+                this.vertices = new Map(); // Stores Vertex objects: id -> Vertex
+                this.edges = new Map();    // Stores Edge objects: id -> Edge
+                this.adj = new Map();      // Adjacency list: vertex_id -> Set<connected_vertex_id>
+            }
+
+            /**
+             * Adds a vertex to the graph.
+             * @param {string} id - The unique ID for the vertex.
+             * @param {string} label - The label of the vertex.
+             * @returns {boolean} True if added, false if ID already exists.
+             */
+            addVertex(id, label) {
+                if (!this.vertices.has(id)) {
+                    this.vertices.set(id, new Vertex(id, label));
+                    this.adj.set(id, new Set());
+                    return true;
+                }
+                return false;
+            }
+
+            /**
+             * Adds an undirected edge to the graph.
+             * @param {string} id - The unique ID for the edge.
+             * @param {string} sourceId - The ID of the source vertex.
+             * @param {string} targetId - The ID of the target vertex.
+             * @param {string} label - The label of the edge.
+             * @returns {boolean} True if added, false if vertices don't exist or edge ID exists.
+             */
+            addEdge(id, sourceId, targetId, label) {
+                if (this.vertices.has(sourceId) && this.vertices.has(targetId) && !this.edges.has(id)) {
+                    this.edges.set(id, new Edge(id, sourceId, targetId, label));
+                    // Add to adjacency list for both directions (undirected graph)
+                    this.adj.get(sourceId).add(targetId);
+                    this.adj.get(targetId).add(sourceId);
+                    return true;
+                }
+                return false;
+            }
+
+            /**
+             * Gets a vertex by its ID.
+             * @param {string} id - The ID of the vertex.
+             * @returns {Vertex | undefined} The vertex object, or undefined if not found.
+             */
+            getVertex(id) {
+                return this.vertices.get(id);
+            }
+
+            /**
+             * Gets an edge by its ID.
+             * @param {string} id - The ID of the edge.
+             * @returns {Edge | undefined} The edge object, or undefined if not found.
+             */
+            getEdge(id) {
+                return this.edges.get(id);
+            }
+        }
+
+        // --- Constants for Graph Generation and Costs ---
+        const MIN_VERTICES = 4;
+        const MAX_VERTICES = 8; // Keep max vertices low for better visualization and heuristic clarity
+        const EDGE_PROBABILITY = 0.4; // Probability of an edge existing between any two vertices
+
+        // Costs for edit operations (used in heuristic)
+        const COST_VERTEX_DELETION = 1;
+        const COST_VERTEX_INSERTION = 1;
+        const COST_EDGE_DELETION = 1;
+        const COST_EDGE_INSERTION = 1;
+        // Note: Vertex/Edge substitution are implicitly covered as a deletion + insertion in this heuristic.
+
+        // --- Utility Functions ---
+        /**
+         * Returns a random integer between min (inclusive) and max (inclusive).
+         * @param {number} min
+         * @param {number} max
+         * @returns {number}
+         */
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        /**
+         * Generates a random graph based on defined parameters.
+         * @returns {Graph} A newly generated random graph.
+         */
+        function generateRandomGraph() {
+            const graph = new Graph();
+            const numVertices = getRandomInt(MIN_VERTICES, MAX_VERTICES);
+            const vertexIds = [];
+
+            // Add vertices with sequential labels (v1, v2, v3, ...)
+            for (let i = 0; i < numVertices; i++) {
+                const id = `v${i}-${crypto.randomUUID().slice(0, 4)}`; // Unique ID for internal use
+                const label = `v${i + 1}`; // Sequential label for display
+                graph.addVertex(id, label);
+                vertexIds.push(id);
+            }
+
+            // Add edges with sequential labels (e1, e2, e3, ...)
+            let edgeCounter = 1;
+            for (let i = 0; i < numVertices; i++) {
+                for (let j = i + 1; j < numVertices; j++) { // Ensure no self-loops and no duplicate undirected edges
+                    if (Math.random() < EDGE_PROBABILITY) {
+                        const sourceId = vertexIds[i];
+                        const targetId = vertexIds[j];
+                        const edgeId = `e-${crypto.randomUUID().slice(0, 4)}`; // Unique ID for internal use
+                        const label = `e${edgeCounter++}`; // Sequential label for display
+                        graph.addEdge(edgeId, sourceId, targetId, label);
+                    }
+                }
+            }
+            return graph;
+        }
+
+        /**
+         * Draws a graph into an SVG container using a circular layout for nodes.
+         * @param {Graph} graph - The graph to draw.
+         * @param {HTMLElement} container - The DOM element to render the SVG into.
+         */
+        function drawGraph(graph, container) {
+            container.innerHTML = ''; // Clear previous SVG
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", width);
+            svg.setAttribute("height", height);
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            container.appendChild(svg);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) / 2 - 30; // Radius for circular layout, with padding
+
+            const vertexPositions = new Map(); // Stores {id: {x, y}} for drawing
+
+            // Calculate node positions in a circle
+            const numVertices = graph.vertices.size;
+            if (numVertices > 0) {
+                let i = 0;
+                for (const [id, vertex] of graph.vertices.entries()) {
+                    const angle = (i / numVertices) * 2 * Math.PI;
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
+                    vertexPositions.set(id, { x, y });
+
+                    // Draw circles for nodes
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute("cx", x);
+                    circle.setAttribute("cy", y);
+                    circle.setAttribute("r", 20); // Node radius
+                    svg.appendChild(circle);
+
+                    // Draw text labels for nodes
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", x);
+                    text.setAttribute("y", y + 5); // Adjust for vertical centering
+                    text.setAttribute("text-anchor", "middle");
+                    text.textContent = vertex.label;
+                    svg.appendChild(text);
+                    i++;
+                }
+            }
+
+            // Draw lines for edges and their labels
+            for (const [edgeId, edge] of graph.edges.entries()) {
+                const sourcePos = vertexPositions.get(edge.source);
+                const targetPos = vertexPositions.get(edge.target);
+
+                if (sourcePos && targetPos) {
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("x1", sourcePos.x);
+                    line.setAttribute("y1", sourcePos.y);
+                    line.setAttribute("x2", targetPos.x);
+                    line.setAttribute("y2", targetPos.y);
+                    svg.appendChild(line);
+
+                    // Draw edge label near the midpoint
+                    const midX = (sourcePos.x + targetPos.x) / 2;
+                    const midY = (sourcePos.y + targetPos.y) / 2;
+
+                    // Calculate a small offset for the label to avoid direct overlap with the line
+                    const dx = targetPos.x - sourcePos.x;
+                    const dy = targetPos.y - sourcePos.y;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    const offset = 15; // Offset distance from the line
+
+                    let labelX = midX;
+                    let labelY = midY;
+
+                    if (len > 0) {
+                        const normalX = -dy / len; // Perpendicular vector for offset
+                        const normalY = dx / len;
+                        labelX += normalX * offset;
+                        labelY += normalY * offset;
+                    } else { // Handle case where points are identical (shouldn't happen with different nodes)
+                        labelY -= offset;
+                    }
+
+
+                    const edgeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    edgeText.setAttribute("x", labelX);
+                    edgeText.setAttribute("y", labelY);
+                    edgeText.setAttribute("text-anchor", "middle");
+                    edgeText.setAttribute("fill", "#374151"); /* Darker text color */
+                    edgeText.setAttribute("font-size", "12px"); /* Slightly smaller for edge labels */
+                    edgeText.textContent = edge.label;
+                    svg.appendChild(edgeText);
+                }
+            }
+        }
+
+        /**
+         * Calculates the approximate graph dissimilarity (heuristic graph edit distance).
+         * @param {Graph} graph1 - The first graph.
+         * @param {Graph} graph2 - The second graph.
+         * @returns {number} The calculated dissimilarity score.
+         */
+        function calculateGraphDissimilarity(graph1, graph2) {
+            let totalCost = 0;
+
+            // --- 1. Vertex Costs (based on label frequency differences) ---
+            const vertexLabelCounts1 = new Map();
+            for (const vertex of graph1.vertices.values()) {
+                vertexLabelCounts1.set(vertex.label, (vertexLabelCounts1.get(vertex.label) || 0) + 1);
+            }
+
+            const vertexLabelCounts2 = new Map();
+            for (const vertex of graph2.vertices.values()) {
+                vertexLabelCounts2.set(vertex.label, (vertexLabelCounts2.get(vertex.label) || 0) + 1);
+            }
+
+            const allUniqueVertexLabels = new Set([...vertexLabelCounts1.keys(), ...vertexLabelCounts2.keys()]);
+
+            for (const label of allUniqueVertexLabels) {
+                const count1 = vertexLabelCounts1.get(label) || 0;
+                const count2 = vertexLabelCounts2.get(label) || 0;
+                const matchedCount = Math.min(count1, count2);
+
+                // Cost for deletions (vertices present in G1 but not "matched" in G2)
+                totalCost += (count1 - matchedCount) * COST_VERTEX_DELETION;
+                // Cost for insertions (vertices present in G2 but not "matched" in G1)
+                totalCost += (count2 - matchedCount) * COST_VERTEX_INSERTION;
+            }
+
+            // --- 2. Edge Costs (based on edge pattern frequency differences) ---
+            // An "edge pattern" is defined by: (sorted_vertex_label_1, sorted_vertex_label_2, edge_label)
+            const edgePatternCounts1 = new Map();
+            for (const edge of graph1.edges.values()) {
+                const sourceVertex = graph1.getVertex(edge.source);
+                const targetVertex = graph1.getVertex(edge.target);
+
+                if (sourceVertex && targetVertex) {
+                    const labels = [sourceVertex.label, targetVertex.label].sort();
+                    const pattern = `${labels[0]}-${labels[1]}_${edge.label}`;
+                    edgePatternCounts1.set(pattern, (edgePatternCounts1.get(pattern) || 0) + 1);
+                }
+            }
+
+            const edgePatternCounts2 = new Map();
+            for (const edge of graph2.edges.values()) {
+                const sourceVertex = graph2.getVertex(edge.source);
+                const targetVertex = graph2.getVertex(edge.target);
+
+                if (sourceVertex && targetVertex) {
+                    const labels = [sourceVertex.label, targetVertex.label].sort();
+                    const pattern = `${labels[0]}-${labels[1]}_${edge.label}`;
+                    edgePatternCounts2.set(pattern, (edgePatternCounts2.get(pattern) || 0) + 1);
+                }
+            }
+
+            const allUniqueEdgePatterns = new Set([...edgePatternCounts1.keys(), ...edgePatternCounts2.keys()]);
+
+            for (const pattern of allUniqueEdgePatterns) {
+                const count1 = edgePatternCounts1.get(pattern) || 0;
+                const count2 = edgePatternCounts2.get(pattern) || 0;
+                const matchedCount = Math.min(count1, count2);
+
+                // Cost for deletions (edge patterns present in G1 but not "matched" in G2)
+                totalCost += (count1 - matchedCount) * COST_EDGE_DELETION;
+                // Cost for insertions (edge patterns present in G2 but not "matched" in G1)
+                totalCost += (count2 - matchedCount) * COST_EDGE_INSERTION;
+            }
+
+            return totalCost;
+        }
+
+        /**
+         * Displays graph details (vertex count, edge count, vertex/edge labels).
+         * @param {Graph} graph - The graph to display details for.
+         * @param {HTMLElement} container - The DOM element to render details into.
+         */
+        function displayGraphDetails(graph, container) {
+            let vertexLabels = [];
+            for (const vertex of graph.vertices.values()) {
+                vertexLabels.push(vertex.label);
+            }
+            vertexLabels.sort();
+
+            let edgeLabels = [];
+            for (const edge of graph.edges.values()) {
+                edgeLabels.push(edge.label);
+            }
+            edgeLabels.sort();
+
+            container.innerHTML = `
+                <p><strong>Vertices:</strong> ${graph.vertices.size} (${vertexLabels.join(', ') || 'N/A'})</p>
+                <p><strong>Edges:</strong> ${graph.edges.size} (${edgeLabels.join(', ') || 'N/A'})</p>
+            `;
+        }
+
+
+        // --- Main Application Logic ---
+        let graph1, graph2;
+
+        const graph1Container = document.getElementById('graph1-container');
+        const graph2Container = document.getElementById('graph2-container');
+        const graph1Details = document.getElementById('graph1-details');
+        const graph2Details = document.getElementById('graph2-details');
+        const calculatedDistanceSpan = document.getElementById('calculated-distance');
+        const generateGraphsBtn = document.getElementById('generate-graphs-btn');
+
+        /**
+         * Generates two new graphs, draws them, and calculates/displays the distance.
+         */
+        function generateAndCalculate() {
+            graph1 = generateRandomGraph();
+            graph2 = generateRandomGraph();
+
+            drawGraph(graph1, graph1Container);
+            drawGraph(graph2, graph2Container);
+
+            displayGraphDetails(graph1, graph1Details);
+            displayGraphDetails(graph2, graph2Details);
+
+            const distance = calculateGraphDissimilarity(graph1, graph2);
+            calculatedDistanceSpan.textContent = distance;
+        }
+
+        // Event listener for the button
+        generateGraphsBtn.addEventListener('click', generateAndCalculate);
+
+        // Initial generation on page load
+        window.onload = generateAndCalculate;
+
+        // Optional: Recalculate and redraw on window resize for responsiveness
+        window.addEventListener('resize', () => {
+            if (graph1 && graph2) { // Only redraw if graphs already exist
+                drawGraph(graph1, graph1Container);
+                drawGraph(graph2, graph2Container);
+            }
+        });
+
+    </script>
+</body>
+</html>
