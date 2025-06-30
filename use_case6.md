@@ -1,7 +1,7 @@
 ---
 layout: page
 title: "kNN visualizer"
-permalink: /use_case5/
+permalink: /use_case6/
 ---
 
 # How might we visualize kNN algorithm in a very intuitive way? 
