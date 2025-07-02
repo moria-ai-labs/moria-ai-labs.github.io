@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>p5.js Fading Hexagonal Grid</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a1a; /* Even darker background */
+            color: #fff;
+            font-family: 'Helvetica Neue', sans-serif;
+            overflow: hidden; /* Hide scrollbars */
+        }
+        main {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: row; /* Arrange sliders side-by-side */
+            align-items: center;
+            gap: 30px; /* Space between sliders */
+            background-color: rgba(0,0,0,0.6);
+            padding: 15px 25px;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        label {
+            margin-bottom: 8px;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+</head>
+<body>
+    <main>
+        <div class="controls">
+            <div id="fade-control" class="control-group">
+                 <label for="fadeSlider">Fade Rate</label>
+            </div>
+            <div id="size-control" class="control-group">
+                <label for="sizeSlider">Lattice Size</label>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Sketch ---
+
+        // Hexagon size (will be controlled by a slider)
+        let hexSize;
+        // Default color for hexagons
+        let defaultColor;
+        // Color when mouse hovers over a hexagon
+        let hoverColor;
+        // Sliders
+        let fadeSlider;
+        let sizeSlider;
+
+        // An object to store the state (brightness) of each hexagon
+        let hexStates = {};
+
+        function setup() {
+            // Create a canvas that fits the window
+            const canvas = createCanvas(windowWidth, windowHeight);
+            // Parent the canvas to the main element
+            canvas.parent(document.querySelector('main'));
+
+            // Define new colors in the red-purple spectrum
+            defaultColor = color(45, 20, 60); // Dark purple
+            hoverColor = color(255, 0, 150);  // Bright magenta/pink
+
+            // Set angle mode to degrees for easier rotation
+            angleMode(DEGREES);
+
+            // Create a slider for the fade rate
+            fadeSlider = createSlider(0, 10, 2, 0.1); // Min, Max, Initial, Step
+            fadeSlider.parent('fade-control');
+            fadeSlider.id('fadeSlider');
+
+            // Create a slider for the hexagon size
+            sizeSlider = createSlider(10, 80, 40, 1); // Min, Max, Initial, Step
+            sizeSlider.parent('size-control');
+            sizeSlider.id('sizeSlider');
+        }
+
+        function draw() {
+            background(26, 26, 26); // Dark background
+            updateAndDrawHexGrid();
+        }
+
+        /**
+         * Updates the state of all hexagons (fading) and then draws them.
+         */
+        function updateAndDrawHexGrid() {
+            const fadeRate = fadeSlider.value();
+            hexSize = sizeSlider.value(); // Get current size from slider
+
+            // --- Fading Logic ---
+            for (const key in hexStates) {
+                hexStates[key] -= fadeRate;
+                if (hexStates[key] <= 0) {
+                    delete hexStates[key];
+                }
+            }
+
+            // --- Drawing Logic ---
+            const hexWidth = hexSize * sqrt(3);
+            const hexHeight = hexSize * 2;
+            const vertDist = hexHeight * 3/4;
+
+            // Loop through rows and columns to create the grid
+            // Add padding based on hexSize to avoid drawing at the very edge
+            for (let y = hexSize, row = 0; y < height - hexSize; y += vertDist, row++) {
+                for (let x = hexSize, col = 0; x < width - hexSize; x += hexWidth, col++) {
+                    const xOffset = (row % 2 === 0) ? 0 : hexWidth / 2;
+                    const hx = x + xOffset;
+                    const hy = y;
+                    const key = `${col},${row}`;
+
+                    // Check if the mouse is inside the current hexagon
+                    if (isMouseInHex(hx, hy)) {
+                        hexStates[key] = 255;
+                    }
+
+                    let currentFill = defaultColor;
+                    if (hexStates[key]) {
+                        const fadeAmount = hexStates[key] / 255;
+                        currentFill = lerpColor(defaultColor, hoverColor, fadeAmount);
+                    }
+                    
+                    fill(currentFill);
+                    drawHexagon(hx, hy);
+                }
+            }
+        }
+
+        /**
+         * Draws a single hexagon centered at (x, y).
+         * @param {number} x - The x-coordinate of the hexagon's center.
+         * @param {number} y - The y-coordinate of the hexagon's center.
+         */
+        function drawHexagon(x, y) {
+            noStroke();
+            beginShape();
+            for (let i = 0; i < 6; i++) {
+                const angle = 60 * i + 30; // Pointy-top orientation
+                const vx = x + hexSize * cos(angle);
+                const vy = y + hexSize * sin(angle);
+                vertex(vx, vy);
+            }
+            endShape(CLOSE);
+        }
+
+        /**
+         * Checks if the mouse is inside a hexagon using a distance check.
+         * @param {number} hx - The x-coordinate of the hexagon's center.
+         * @param {number} hy - The y-coordinate of the hexagon's center.
+         * @returns {boolean} - True if the mouse is inside, false otherwise.
+         */
+        function isMouseInHex(hx, hy) {
+            // The distance check needs to use the current hexSize
+            return dist(mouseX, mouseY, hx, hy) < hexSize * 0.866; // Using apothem for better accuracy
+        }
+
+        /**
+         * p5.js function that is called when the window is resized.
+         */
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
