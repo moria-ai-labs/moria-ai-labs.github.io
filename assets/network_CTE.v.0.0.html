@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQL CTE Visualizer</title>
+    <title>SQL CTE Visualizer - Vignelli Style</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font (Inter) for Vignelli style -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- vis-network for graph visualization -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         /* Custom styles for vis-network graph */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
         #network {
             width: 100%;
             height: 600px;
             border: 1px solid #4a5568; /* border-gray-700 */
-            background-color: #1a202c; /* bg-gray-900 */
+            background-color: #f5f5f5; /* A light, paper-like background */
             border-radius: 0.5rem; /* rounded-lg */
         }
         /* Style for vis-network tooltips */
@@ -29,12 +36,12 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 font-sans antialiased">
+<body class="bg-gray-900 text-gray-200 antialiased">
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-bold text-white">SQL CTE Visualizer</h1>
-            <p class="text-lg text-gray-400 mt-2">Paste your SQL with CTEs below to see the dependency graph.</p>
+            <p class="text-lg text-gray-400 mt-2">A Vignelli-style map of your query's data flow.</p>
         </header>
 
         <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -98,38 +105,22 @@ JOIN top_regions s ON e.region = s.region;
 
             let network = null;
 
-            /**
-             * Parses the SQL query to extract nodes (CTEs, tables) and edges (dependencies).
-             * @param {string} sql - The SQL query string.
-             * @returns {{nodes: Array, edges: Array}} - The nodes and edges for the graph.
-             */
             function parseSql(sql) {
                 const nodes = [];
                 const edges = [];
                 const nodeIds = new Set();
+                const nodeDegrees = new Map();
                 
-                // Remove comments to prevent parsing errors
                 const cleanSql = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+                const sources = new Map();
 
-                const sources = new Map(); // Map to store CTE names and their bodies
-
-                // --- Step 1: Identify all CTEs and the final query ---
                 let finalQuery = cleanSql;
                 const withKeywordIndex = cleanSql.toUpperCase().indexOf('WITH');
-
                 if (withKeywordIndex !== -1) {
-                    let openParens = 0;
-                    let lastParenIndex = -1;
-                    let withClauseEndIndex = -1;
-
-                    // A more robust way to find the end of the WITH clause block
+                    let openParens = 0, lastParenIndex = -1, withClauseEndIndex = -1;
                     for (let i = withKeywordIndex; i < cleanSql.length; i++) {
                         if (cleanSql[i] === '(') openParens++;
-                        if (cleanSql[i] === ')') {
-                            openParens--;
-                            lastParenIndex = i;
-                        }
-                        // The WITH block ends right before the final SELECT that is not in a subquery
+                        if (cleanSql[i] === ')') { openParens--; lastParenIndex = i; }
                         if (openParens === 0 && lastParenIndex > withKeywordIndex) {
                             const followingText = cleanSql.substring(lastParenIndex + 1).trim();
                             if (followingText.toUpperCase().startsWith('SELECT') || followingText.toUpperCase().startsWith('(')) {
@@ -138,11 +129,9 @@ JOIN top_regions s ON e.region = s.region;
                             }
                         }
                     }
-                    
                     if (withClauseEndIndex !== -1) {
                         const withBlock = cleanSql.substring(0, withClauseEndIndex + 1);
                         finalQuery = cleanSql.substring(withClauseEndIndex + 1);
-
                         const cteRegex = /(\w+)\s+AS\s*\(([\s\S]*?)\)(?=\s*,\s*\w+\s+AS|\s*$)/gi;
                         let cteMatch;
                         while ((cteMatch = cteRegex.exec(withBlock)) !== null) {
@@ -152,23 +141,36 @@ JOIN top_regions s ON e.region = s.region;
                 }
                 sources.set('_final_query_', finalQuery);
 
-                // --- Step 2: Process each source to find dependencies and create nodes/edges ---
+                const dependencies = new Map();
+                for (const [sourceName, sourceBody] of sources.entries()) {
+                    if (!dependencies.has(sourceName)) dependencies.set(sourceName, []);
+                    const dependencyRegex = /\b(?:FROM|JOIN)\s+([\w\.]+)/gi;
+                    let match;
+                    while ((match = dependencyRegex.exec(sourceBody)) !== null) {
+                        const depName = match[1];
+                        dependencies.get(sourceName).push(depName);
+                        if (!nodeDegrees.has(sourceName)) nodeDegrees.set(sourceName, 0);
+                        if (!nodeDegrees.has(depName)) nodeDegrees.set(depName, 0);
+                        nodeDegrees.set(sourceName, nodeDegrees.get(sourceName) + 1);
+                        nodeDegrees.set(depName, nodeDegrees.get(depName) + 1);
+                    }
+                }
+
                 for (const [sourceName, sourceBody] of sources.entries()) {
                     if (!nodeIds.has(sourceName)) {
-                        let nodeConfig = { id: sourceName, label: sourceName };
+                        const degree = nodeDegrees.get(sourceName) || 0;
+                        const isInterchange = degree > 2;
+                        let nodeConfig = {
+                            id: sourceName,
+                            label: sourceName,
+                            shape: 'dot',
+                            size: isInterchange ? 20 : 12,
+                            font: { align: 'left', color: '#111827', face: 'Inter', strokeWidth: 0, size: 16 }
+                        };
                         if (sourceName === '_final_query_') {
-                            Object.assign(nodeConfig, {
-                                label: 'Final Result',
-                                shape: 'box',
-                                color: { background: '#f97316', border: '#fb923c' },
-                                font: { color: '#ffffff' }
-                            });
+                            Object.assign(nodeConfig, { label: 'Final Result', color: '#E65C3C' }); // Vignelli Orange
                         } else {
-                            Object.assign(nodeConfig, {
-                                shape: 'box', // This is a round-edge rectangle by default
-                                color: { background: '#2563eb', border: '#60a5fa' },
-                                font: { color: '#ffffff' }
-                            });
+                            Object.assign(nodeConfig, { color: '#00599C' }); // Vignelli Blue
                         }
                         nodes.push(nodeConfig);
                         nodeIds.add(sourceName);
@@ -179,104 +181,68 @@ JOIN top_regions s ON e.region = s.region;
                     while ((match = dependencyRegex.exec(sourceBody)) !== null) {
                         const dependencyName = match[1];
                         const alias = match[2] || dependencyName;
-
                         if (!nodeIds.has(dependencyName)) {
                             const isCte = sources.has(dependencyName);
+                            const degree = nodeDegrees.get(dependencyName) || 0;
+                            const isInterchange = degree > 2;
                             nodes.push({
                                 id: dependencyName,
                                 label: dependencyName,
-                                shape: 'box', 
-                                color: isCte 
-                                    ? { background: '#2563eb', border: '#60a5fa' }
-                                    : { background: '#16a34a', border: '#4ade80' }, // Green for base tables
-                                font: { color: '#ffffff' }
+                                shape: 'dot',
+                                size: isInterchange ? 20 : 12,
+                                color: isCte ? '#00599C' : '#56A942', // Vignelli Green for base tables
+                                font: { align: 'left', color: '#111827', face: 'Inter', strokeWidth: 0, size: 16 }
                             });
                             nodeIds.add(dependencyName);
                         }
-                        
                         const usedFields = new Set();
                         const fieldRegex = new RegExp(`\\b(?:${alias}|${dependencyName})\\.(\\w+)`, 'gi');
                         let fieldMatch;
-                        while ((fieldMatch = fieldRegex.exec(sourceBody)) !== null) {
-                            usedFields.add(fieldMatch[1]);
-                        }
-
+                        while ((fieldMatch = fieldRegex.exec(sourceBody)) !== null) { usedFields.add(fieldMatch[1]); }
                         edges.push({
-                            from: dependencyName,
-                            to: sourceName,
-                            arrows: 'to',
-                            title: usedFields.size > 0 
-                                ? `Fields:\n- ${Array.from(usedFields).join('\n- ')}` 
-                                : `Dependency on ${dependencyName}`
+                            from: dependencyName, to: sourceName,
+                            title: usedFields.size > 0 ? `Fields:\n- ${Array.from(usedFields).join('\n- ')}` : `Dependency on ${dependencyName}`
                         });
                     }
                 }
-
                 return { nodes, edges };
             }
 
-            /**
-             * Renders the network graph using vis.js.
-             * @param {Array} nodes - Array of node objects.
-             * @param {Array} edges - Array of edge objects.
-             */
             function drawNetwork(nodes, edges) {
-                if (network) {
-                    network.destroy();
-                }
-                const data = {
-                    nodes: new vis.DataSet(nodes),
-                    edges: new vis.DataSet(edges),
-                };
+                if (network) { network.destroy(); }
+                const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
                 const options = {
                     layout: {
                         hierarchical: {
-                            enabled: true,
-                            direction: 'LR',
-                            sortMethod: 'directed',
-                            levelSeparation: 250, // INCREASED: More space between levels
-                            nodeSpacing: 150,
-                            blockShifting: true, // ADDED: Tries to prevent edge overlap
-                            edgeMinimization: true, // ADDED: Tries to minimize crossing
-                            parentCentralization: true // ADDED: Centers parents over children
+                            enabled: true, direction: 'LR', sortMethod: 'directed',
+                            levelSeparation: 250, nodeSpacing: 150,
+                            blockShifting: true, edgeMinimization: true, parentCentralization: true
                         },
                     },
-                    physics: {
-                        enabled: false,
-                    },
+                    physics: { enabled: false },
                     nodes: {
-                        font: {
-                            size: 14,
-                            color: '#e2e8f0'
-                        },
-                        borderWidth: 2,
-                        shadow: true,
+                        borderWidth: 0, // No border for a cleaner dot
+                        shadow: false,
                     },
                     edges: {
-                        color: {
-                            color: '#64748b',
-                            highlight: '#f1f5f9',
-                            hover: '#94a3b8'
-                        },
-                        width: 2,
+                        width: 10, // Thick lines
+                        color: { color: '#888888', highlight: '#555555', hover: '#666666' },
                         smooth: {
+                            enabled: true,
                             type: 'cubicBezier',
                             forceDirection: 'horizontal',
-                            roundness: 0.4
-                        }
+                            roundness: 0
+                        },
+                        arrows: { to: { enabled: false } } // CHANGED: Arrowheads are now disabled
                     },
                     interaction: {
-                        hover: true,
-                        tooltipDelay: 200,
-                        dragNodes: true,
-                        dragView: true,
-                        zoomView: true
+                        hover: true, tooltipDelay: 200,
+                        dragNodes: true, dragView: true, zoomView: true
                     },
                 };
                 network = new vis.Network(networkContainer, data, options);
             }
 
-            // --- Event Listeners ---
             visualizeBtn.addEventListener('click', () => {
                 try {
                     const sql = sqlInput.value;
@@ -292,7 +258,6 @@ JOIN top_regions s ON e.region = s.region;
                 }
             });
 
-            // Initial visualization on page load
             visualizeBtn.click();
         });
     </script>
