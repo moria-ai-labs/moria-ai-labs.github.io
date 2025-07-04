@@ -58,7 +58,11 @@
                             <label for="speed" class="block text-sm font-medium text-gray-300 mb-1">Animation Speed</label>
                             <input type="range" id="speed" min="1" max="100" value="50" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
                         </div>
-                        <button id="startButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 shadow-lg">
+                        <div class="flex items-center justify-between pt-2">
+                            <label for="slowStartCheckbox" class="text-sm font-medium text-gray-300">Slow Start</label>
+                            <input type="checkbox" id="slowStartCheckbox" checked class="h-4 w-4 rounded border-gray-600 bg-gray-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800">
+                        </div>
+                        <button id="startButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 shadow-lg !mt-6">
                             Start Simulation
                         </button>
                     </div>
@@ -77,8 +81,10 @@
         const walksInput = document.getElementById('walks');
         const speedInput = document.getElementById('speed');
         const startButton = document.getElementById('startButton');
+        const slowStartCheckbox = document.getElementById('slowStartCheckbox');
 
         let animationFrameId;
+        let frameCounter = 0;
 
         // --- Drawing and Simulation Logic ---
 
@@ -170,8 +176,6 @@
 
             let firstPoint = true;
             for (let pixelX = 0; pixelX < histCtx.canvas.width; pixelX++) {
-                // This calculation maps the pixel x-coordinate to the continuous bin value,
-                // ensuring the curve is centered over the bars.
                 const bin = (pixelX - barWidth / 2) / barWidth;
                 const pdf = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-((bin - mu) ** 2) / (2 * sigma ** 2));
                 const expectedCount = pdf * totalWalks;
@@ -247,10 +251,17 @@
             const steps = parseInt(stepsInput.value);
             const totalWalks = parseInt(walksInput.value);
             const animationSpeed = parseInt(speedInput.value);
+            const slowStart = slowStartCheckbox.checked;
+
             const fastWalksPerFrame = Math.max(1, Math.floor(animationSpeed / 10));
+            // The slow interval is the number of frames to wait for one walk.
+            // It's calculated to be 100x slower than the fast speed.
+            const slowFrameInterval = Math.max(1, Math.round(100 / fastWalksPerFrame));
+            
             const d = (canvas.width * 0.8) / (steps + 2);
             const finalBins = new Array(steps + 1).fill(0);
             let walksDone = 0;
+            frameCounter = 0; // Reset frame counter for the new simulation
             
             resizeCanvas();
             drawLattice(steps, d);
@@ -264,14 +275,22 @@
                     return;
                 }
 
-                const walksThisFrame = walksDone < 100 ? 1 : fastWalksPerFrame;
-
-                for (let i = 0; i < walksThisFrame && walksDone < totalWalks; i++) {
-                    const finalBin = simulateOneWalk(steps, d);
-                    if (finalBin >= 0 && finalBin <= steps) {
-                        finalBins[finalBin]++;
+                if (slowStart && walksDone < 100) {
+                    // SLOW PHASE: Runs at 1% of the fast speed.
+                    frameCounter++;
+                    if (frameCounter >= slowFrameInterval) {
+                        const finalBin = simulateOneWalk(steps, d);
+                        if (finalBin >= 0 && finalBin <= steps) { finalBins[finalBin]++; }
+                        walksDone++;
+                        frameCounter = 0; // Reset counter after a walk
                     }
-                    walksDone++;
+                } else {
+                    // FAST PHASE: Runs at the speed set by the slider.
+                    for (let i = 0; i < fastWalksPerFrame && walksDone < totalWalks; i++) {
+                        const finalBin = simulateOneWalk(steps, d);
+                        if (finalBin >= 0 && finalBin <= steps) { finalBins[finalBin]++; }
+                        walksDone++;
+                    }
                 }
                 
                 drawHistogram(finalBins, steps, totalWalks);
@@ -302,3 +321,4 @@
     </script>
 </body>
 </html>
+
