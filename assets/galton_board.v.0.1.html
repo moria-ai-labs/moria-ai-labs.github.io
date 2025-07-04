@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Walk Lattice Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .control-panel {
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto">
+        <h1 class="text-3xl font-bold text-center text-white mb-2">Random Walk Lattice Simulation</h1>
+        <p class="text-center text-gray-400 mb-6">This simulation shows multiple random walks on a triangular lattice. Each walk starts at the top and randomly moves down-left or down-right at each step.</p>
+
+        <!-- Main container for simulation and controls -->
+        <div class="bg-gray-800 rounded-2xl shadow-2xl p-4 md:p-6">
+            <div class="flex flex-col md:flex-row gap-6">
+                
+                <!-- Vertical container for the simulation and the histogram -->
+                <div class="flex-grow flex flex-col gap-6">
+                    <!-- Canvas for the main simulation -->
+                    <div class="bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
+                        <canvas id="simulationCanvas"></canvas>
+                    </div>
+
+                    <!-- Histogram Display -->
+                    <div>
+                         <h2 class="text-xl font-semibold text-white text-center mb-4">Final Position Distribution</h2>
+                         <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 min-h-[200px]">
+                            <canvas id="histogramCanvas"></canvas>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="w-full md:w-64 flex-shrink-0">
+                    <div class="bg-gray-700/50 p-4 rounded-xl space-y-4">
+                        <h2 class="text-xl font-semibold text-white">Controls</h2>
+                        <div>
+                            <label for="steps" class="block text-sm font-medium text-gray-300 mb-1">Lattice Layers (Steps)</label>
+                            <input type="number" id="steps" value="16" min="2" max="50" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="walks" class="block text-sm font-medium text-gray-300 mb-1">Number of Walks</label>
+                            <input type="number" id="walks" value="1000" min="1" max="10000" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                         <div>
+                            <label for="speed" class="block text-sm font-medium text-gray-300 mb-1">Animation Speed</label>
+                            <input type="range" id="speed" min="1" max="100" value="50" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <button id="startButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 shadow-lg">
+                            Start Simulation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const histogramCanvas = document.getElementById('histogramCanvas');
+        const histCtx = histogramCanvas.getContext('2d');
+        const stepsInput = document.getElementById('steps');
+        const walksInput = document.getElementById('walks');
+        const speedInput = document.getElementById('speed');
+        const startButton = document.getElementById('startButton');
+
+        let animationFrameId;
+
+        // --- Drawing and Simulation Logic ---
+
+        function resizeCanvas() {
+            const simContainer = canvas.parentElement;
+            canvas.width = simContainer.clientWidth;
+            canvas.height = Math.floor(simContainer.clientWidth * 0.8); // Maintain aspect ratio
+
+            const histContainer = histogramCanvas.parentElement;
+            histogramCanvas.width = histContainer.clientWidth;
+            histogramCanvas.height = 200;
+        }
+
+        /**
+         * Clears and draws the base lattice structure.
+         * @param {number} steps - The number of layers in the lattice.
+         * @param {number} d - The distance between nodes.
+         */
+        function drawLattice(steps, d) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const startX = canvas.width / 2;
+            const startY = d;
+
+            ctx.fillStyle = 'rgba(100, 116, 139, 0.5)'; // Gray-blue for lattice points
+            for (let y = 0; y <= steps; y++) {
+                const numNodes = y + 1;
+                const layerWidth = y * d;
+                const layerStartX = startX - layerWidth / 2;
+                for (let x = 0; x < numNodes; x++) {
+                    ctx.beginPath();
+                    ctx.arc(layerStartX + x * d, startY + y * d, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        /**
+         * Simulates and draws a single random walk.
+         * @param {number} steps - The number of steps for the walk.
+         * @param {number} d - The distance between nodes.
+         * @returns {number} The final horizontal bin index.
+         */
+        function simulateOneWalk(steps, d) {
+            const startX = canvas.width / 2;
+            const startY = d;
+            
+            let currentX = startX;
+            let currentY = startY;
+            let horizontalBin = 0; // 0 is the center, negative is left, positive is right
+
+            ctx.beginPath();
+            ctx.moveTo(currentX, currentY);
+            ctx.strokeStyle = `hsla(${Math.random() * 360}, 70%, 60%, 0.3)`;
+            ctx.lineWidth = 1.5;
+
+            for (let i = 0; i < steps; i++) {
+                const direction = Math.random() < 0.5 ? -1 : 1; // -1 for left, 1 for right
+                horizontalBin += direction;
+                
+                currentX += (direction * d) / 2;
+                currentY += d;
+                ctx.lineTo(currentX, currentY);
+            }
+            ctx.stroke();
+            
+            return (horizontalBin + steps) / 2;
+        }
+
+        /**
+         * Draws the normal distribution curve overlay.
+         * @param {CanvasRenderingContext2D} histCtx - The context of the histogram canvas.
+         * @param {number} steps - The total number of steps.
+         * @param {number} totalWalks - The total number of walks in the simulation.
+         * @param {number} yAxisMax - The maximum value for the y-axis scaling.
+         */
+        function drawNormalOverlay(histCtx, steps, totalWalks, yAxisMax) {
+            const mu = steps / 2;
+            const sigma = Math.sqrt(steps) / 2;
+            if (sigma === 0) return; // Avoid division by zero for 1 step
+
+            const barWidth = histCtx.canvas.width / (steps + 1);
+            const maxBarHeight = histCtx.canvas.height - 20;
+
+            histCtx.beginPath();
+            histCtx.strokeStyle = 'rgba(253, 224, 71, 0.9)'; // Yellow-400
+            histCtx.lineWidth = 2.5;
+            histCtx.shadowColor = 'rgba(253, 224, 71, 0.5)';
+            histCtx.shadowBlur = 6;
+
+            let firstPoint = true;
+            for (let pixelX = 0; pixelX < histCtx.canvas.width; pixelX++) {
+                // This calculation maps the pixel x-coordinate to the continuous bin value,
+                // ensuring the curve is centered over the bars.
+                const bin = (pixelX - barWidth / 2) / barWidth;
+                const pdf = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-((bin - mu) ** 2) / (2 * sigma ** 2));
+                const expectedCount = pdf * totalWalks;
+                const y = histCtx.canvas.height - (expectedCount / yAxisMax) * maxBarHeight;
+
+                if (firstPoint) {
+                    histCtx.moveTo(pixelX, y);
+                    firstPoint = false;
+                } else {
+                    histCtx.lineTo(pixelX, y);
+                }
+            }
+            histCtx.stroke();
+            histCtx.shadowColor = 'transparent'; // Reset shadow
+            histCtx.shadowBlur = 0;
+        }
+
+        /**
+         * Draws a histogram of the final positions and the normal curve.
+         * @param {Array<number>} finalBins - An array where index is the bin and value is the count.
+         * @param {number} steps - The total number of steps.
+         * @param {number} totalWalks - The total number of walks.
+         */
+        function drawHistogram(finalBins, steps, totalWalks) {
+            histCtx.clearRect(0, 0, histogramCanvas.width, histogramCanvas.height);
+            const maxCount = Math.max(...finalBins, 0);
+
+            const mu = steps / 2;
+            const sigma = Math.sqrt(steps) / 2;
+            let expectedPeakCount = 0;
+            if (totalWalks > 0 && sigma > 0) {
+                const peakPdf = (1 / (sigma * Math.sqrt(2 * Math.PI)));
+                expectedPeakCount = peakPdf * totalWalks;
+            }
+            
+            const yAxisMax = Math.max(maxCount, expectedPeakCount, 1);
+            const barWidth = histogramCanvas.width / (steps + 1);
+            const maxBarHeight = histogramCanvas.height - 20;
+
+            for (let i = 0; i <= steps; i++) {
+                if (finalBins[i] > 0) {
+                    const barHeight = (finalBins[i] / yAxisMax) * maxBarHeight;
+                    const x = i * barWidth;
+                    const y = histogramCanvas.height - barHeight;
+
+                    const gradient = histCtx.createLinearGradient(x, y, x, histogramCanvas.height);
+                    gradient.addColorStop(0, '#4f46e5');
+                    gradient.addColorStop(1, '#a78bfa');
+                    histCtx.fillStyle = gradient;
+                    histCtx.fillRect(x, y, barWidth - 2, barHeight);
+
+                    histCtx.fillStyle = '#d1d5db';
+                    histCtx.textAlign = 'center';
+                    histCtx.font = '10px Inter';
+                    histCtx.fillText(finalBins[i], x + (barWidth - 2) / 2, y - 5);
+                }
+            }
+            
+            if (totalWalks > 0) {
+                drawNormalOverlay(histCtx, steps, totalWalks, yAxisMax);
+            }
+        }
+
+        /**
+         * Main simulation function.
+         */
+        function runSimulation() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            
+            startButton.disabled = true;
+            startButton.textContent = 'Simulating...';
+
+            const steps = parseInt(stepsInput.value);
+            const totalWalks = parseInt(walksInput.value);
+            const animationSpeed = parseInt(speedInput.value);
+            const fastWalksPerFrame = Math.max(1, Math.floor(animationSpeed / 10));
+            const d = (canvas.width * 0.8) / (steps + 2);
+            const finalBins = new Array(steps + 1).fill(0);
+            let walksDone = 0;
+            
+            resizeCanvas();
+            drawLattice(steps, d);
+            drawHistogram(finalBins, steps, totalWalks);
+
+            function animate() {
+                if (walksDone >= totalWalks) {
+                    startButton.disabled = false;
+                    startButton.textContent = 'Start Simulation';
+                    drawHistogram(finalBins, steps, totalWalks); // Final draw
+                    return;
+                }
+
+                const walksThisFrame = walksDone < 100 ? 1 : fastWalksPerFrame;
+
+                for (let i = 0; i < walksThisFrame && walksDone < totalWalks; i++) {
+                    const finalBin = simulateOneWalk(steps, d);
+                    if (finalBin >= 0 && finalBin <= steps) {
+                        finalBins[finalBin]++;
+                    }
+                    walksDone++;
+                }
+                
+                drawHistogram(finalBins, steps, totalWalks);
+                animationFrameId = requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', runSimulation);
+        window.addEventListener('resize', () => {
+             clearTimeout(window.resizeTimeout);
+             window.resizeTimeout = setTimeout(() => {
+                resizeCanvas();
+             }, 100);
+        });
+
+        // --- Initial Setup ---
+        window.onload = () => {
+            resizeCanvas();
+            const initialSteps = parseInt(stepsInput.value);
+            const d = (canvas.width * 0.8) / (initialSteps + 2);
+            drawLattice(initialSteps, d);
+            drawHistogram([], initialSteps, 0);
+        };
+
+    </script>
+</body>
+</html>
