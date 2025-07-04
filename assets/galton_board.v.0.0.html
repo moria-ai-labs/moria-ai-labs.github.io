@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galton Board Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden; /* Prevent horizontal scroll, allow vertical */
+        }
+        .control-panel {
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 antialiased">
+
+    <div class="w-full max-w-4xl mx-auto flex flex-col items-center justify-center min-h-screen p-4">
+        <div class="w-full">
+            <h1 class="text-3xl md:text-4xl font-bold text-center mb-2 text-gray-900 dark:text-white">Galton Board & The Bell Curve</h1>
+            <p class="text-center text-gray-600 dark:text-gray-400 mb-6">Watch as randomly falling balls form a normal distribution.</p>
+        </div>
+
+        <div class="relative shadow-2xl rounded-xl w-full">
+            <canvas id="galtonCanvas" class="w-full h-auto bg-white dark:bg-gray-800 rounded-lg"></canvas>
+            <div id="loading" class="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800 bg-opacity-75 rounded-lg">
+                <p class="text-xl font-medium">Loading Simulation...</p>
+            </div>
+        </div>
+
+        <div class="control-panel w-full grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg">
+            <!-- Controls Column 1 & 2 -->
+            <div class="col-span-2 md:col-span-2">
+                <label for="rowsSlider" class="block text-sm font-medium mb-2">Peg Rows: <span id="rowsValue">12</span></label>
+                <input id="rowsSlider" type="range" min="4" max="20" value="12" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <!-- Controls Column 3 -->
+            <div class="col-span-2 md:col-span-1 flex flex-col space-y-2">
+                 <button id="dropBallBtn" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">Drop 1 Ball</button>
+                 <button id="dropMultipleBtn" class="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">Drop 1000 Balls</button>
+            </div>
+
+            <!-- Controls Column 4 -->
+            <div class="col-span-2 md:col-span-1 flex flex-col space-y-2">
+                <button id="resetBtn" class="w-full px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition-transform transform hover:scale-105">Reset</button>
+                <div class="flex items-center justify-center pt-2">
+                    <input id="pascalToggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <label for="pascalToggle" class="ml-2 block text-sm font-medium">Show Pascal's Triangle</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // --- DOM Elements ---
+            const canvas = document.getElementById('galtonCanvas');
+            const ctx = canvas.getContext('2d');
+            const loadingIndicator = document.getElementById('loading');
+            const rowsSlider = document.getElementById('rowsSlider');
+            const rowsValue = document.getElementById('rowsValue');
+            const dropBallBtn = document.getElementById('dropBallBtn');
+            const dropMultipleBtn = document.getElementById('dropMultipleBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const pascalToggle = document.getElementById('pascalToggle');
+
+            // --- Simulation State ---
+            let pegRows = 12;
+            let pegs = [];
+            let balls = [];
+            let bins = [];
+            let showPascal = false;
+            let animationFrameId;
+            let isDroppingMultiple = false; // Flag to prevent multiple drops
+
+            // --- Configuration ---
+            const PEG_COLOR = '#4B5563'; // dark-gray-600
+            const BALL_COLOR = '#3B82F6'; // blue-500
+            const BIN_COLOR = '#1F2937'; // dark-gray-800
+            const PASCAL_COLOR = '#EC4899'; // pink-500
+            const GRAVITY = 0.15;
+            const BOUNCE_FACTOR = 0.4; // Energy loss on bounce
+
+            // --- Sizing & Scaling ---
+            let canvasWidth, canvasHeight, pegRadius, ballRadius, horizontalSpacing, verticalSpacing;
+
+            // --- Core Functions ---
+
+            /**
+             * Initializes or re-initializes the simulation based on canvas size and peg rows.
+             */
+            function init() {
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                
+                const container = canvas.parentElement;
+                canvasWidth = container.clientWidth;
+                canvasHeight = canvasWidth * 0.8; 
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+
+                pegRows = parseInt(rowsSlider.value);
+                rowsValue.textContent = pegRows;
+                horizontalSpacing = canvasWidth / (pegRows + 2);
+                verticalSpacing = (canvasHeight * 0.6) / (pegRows);
+                pegRadius = Math.max(2, horizontalSpacing * 0.1);
+                ballRadius = Math.max(2.5, horizontalSpacing * 0.2);
+
+                createPegs();
+                createBins();
+                balls = [];
+                
+                animate();
+                loadingIndicator.style.display = 'none';
+            }
+
+            /**
+             * Populates the pegs array with their calculated positions.
+             */
+            function createPegs() {
+                pegs = [];
+                for (let row = 0; row < pegRows; row++) {
+                    const numPegsInRow = row + 1;
+                    const y = verticalSpacing * (row + 1.5);
+                    for (let col = 0; col < numPegsInRow; col++) {
+                        const x = (canvasWidth / 2) - (horizontalSpacing * row / 2) + (col * horizontalSpacing);
+                        pegs.push({ x, y });
+                    }
+                }
+            }
+
+            /**
+             * Initializes the bins at the bottom of the board.
+             */
+            function createBins() {
+                bins = [];
+                const numBins = pegRows + 1;
+                for (let i = 0; i < numBins; i++) {
+                    bins.push(0);
+                }
+            }
+
+            /**
+             * Creates a new ball at the top center of the board.
+             */
+            function createBall() {
+                balls.push({
+                    x: canvasWidth / 2 + (Math.random() - 0.5) * 2,
+                    y: ballRadius * 2,
+                    vx: 0,
+                    vy: 0,
+                });
+            }
+
+            /**
+             * The main animation loop.
+             */
+            function animate() {
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                drawPegs();
+                drawBins();
+                updateAndDrawBalls();
+                if (showPascal) {
+                    drawPascalsTriangle();
+                }
+                animationFrameId = requestAnimationFrame(animate);
+            }
+
+            /**
+             * Updates physics and draws all active balls.
+             */
+            function updateAndDrawBalls() {
+                for (let i = balls.length - 1; i >= 0; i--) {
+                    let ball = balls[i];
+
+                    ball.vy += GRAVITY;
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    // Peg collisions
+                    for (const peg of pegs) {
+                        const dx = ball.x - peg.x;
+                        const dy = ball.y - peg.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDistance = ballRadius + pegRadius;
+
+                        if (distance < minDistance) {
+                            // *** CORRECTED COLLISION LOGIC ***
+                            const angle = Math.atan2(dy, dx);
+                            
+                            // 1. Reposition the ball to prevent sticking
+                            const overlap = minDistance - distance;
+                            ball.x += Math.cos(angle) * overlap;
+                            ball.y += Math.sin(angle) * overlap;
+
+                            // 2. Apply bounce
+                            ball.vy *= -BOUNCE_FACTOR;
+                            
+                            // 3. Set horizontal direction randomly
+                            ball.vx = (Math.random() > 0.5 ? 1 : -1) * 1.5;
+                        }
+                    }
+
+                    // Wall collisions
+                    if (ball.x + ballRadius > canvasWidth || ball.x - ballRadius < 0) {
+                        ball.vx *= -0.8; // Dampen wall bounce
+                    }
+
+                    // Binning Logic
+                    const binLevelY = canvasHeight * 0.85;
+                    if (ball.y + ballRadius > binLevelY) {
+                        const binWidth = horizontalSpacing;
+                        let binIndex = Math.floor((ball.x - (horizontalSpacing / 2)) / binWidth);
+                        
+                        binIndex = Math.max(0, Math.min(bins.length - 1, binIndex));
+
+                        if (bins[binIndex] !== undefined) {
+                            bins[binIndex]++;
+                        }
+                        
+                        balls.splice(i, 1);
+                        continue;
+                    }
+
+                    // Draw the ball
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = BALL_COLOR;
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+
+            /**
+             * Draws all pegs on the canvas.
+             */
+            function drawPegs() {
+                ctx.fillStyle = PEG_COLOR;
+                pegs.forEach(peg => {
+                    ctx.beginPath();
+                    ctx.arc(peg.x, peg.y, pegRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.closePath();
+                });
+            }
+
+            /**
+             * Draws the bins and the accumulated ball counts.
+             */
+            function drawBins() {
+                const binWidth = horizontalSpacing;
+                const binStartY = canvasHeight * 0.85;
+                const maxBinHeight = Math.max(...bins, 1);
+
+                ctx.font = `${Math.min(14, binWidth * 0.3)}px Inter`;
+                ctx.textAlign = 'center';
+
+                for (let i = 0; i < bins.length; i++) {
+                    const binHeight = (bins[i] / maxBinHeight) * (canvasHeight * 0.14);
+                    const x = (horizontalSpacing / 2) + i * binWidth;
+                    
+                    ctx.fillStyle = `rgba(59, 130, 246, 0.7)`;
+                    ctx.fillRect(x, binStartY - binHeight, binWidth, binHeight);
+
+                    ctx.fillStyle = BIN_COLOR;
+                    ctx.fillRect(x, binStartY, 2, canvasHeight * 0.15);
+
+                    if (bins[i] > 0) {
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillText(bins[i], x + binWidth / 2, binStartY - 5);
+                    }
+                }
+                ctx.fillRect((horizontalSpacing / 2) + bins.length * binWidth, binStartY, 2, canvasHeight * 0.15);
+            }
+            
+            function combinations(n, k) {
+                if (k < 0 || k > n) return 0;
+                if (k === 0 || k === n) return 1;
+                if (k > n / 2) k = n - k;
+                let res = 1;
+                for (let i = 1; i <= k; i++) {
+                    res = res * (n - i + 1) / i;
+                }
+                return Math.round(res);
+            }
+
+            function drawPascalsTriangle() {
+                ctx.fillStyle = PASCAL_COLOR;
+                ctx.font = `bold ${Math.min(16, horizontalSpacing * 0.3)}px Inter`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                let pegIndex = 0;
+                for (let row = 0; row < pegRows; row++) {
+                    for (let col = 0; col <= row; col++) {
+                        const peg = pegs[pegIndex++];
+                        if (peg) {
+                            const val = combinations(row, col);
+                            ctx.fillText(val, peg.x, peg.y);
+                        }
+                    }
+                }
+            }
+
+            // --- Event Listeners ---
+
+            dropBallBtn.addEventListener('click', createBall);
+
+            dropMultipleBtn.addEventListener('click', () => {
+                if (isDroppingMultiple) return; // Prevent re-triggering
+
+                isDroppingMultiple = true;
+                dropMultipleBtn.disabled = true;
+                dropBallBtn.disabled = true;
+
+                let count = 0;
+                const interval = setInterval(() => {
+                    if (count < 1000) { // Changed from 100 to 1000
+                        createBall();
+                        count++;
+                    } else {
+                        clearInterval(interval);
+                        isDroppingMultiple = false;
+                        dropMultipleBtn.disabled = false;
+                        dropBallBtn.disabled = false;
+                    }
+                }, 5); // Changed from 20 to 5 for faster dropping
+            });
+
+            resetBtn.addEventListener('click', () => {
+                init();
+            });
+
+            rowsSlider.addEventListener('input', (e) => {
+                if (pegRows !== parseInt(e.target.value)) {
+                    init();
+                }
+            });
+
+            pascalToggle.addEventListener('change', (e) => {
+                showPascal = e.target.checked;
+            });
+            
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                loadingIndicator.style.display = 'flex';
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(init, 250);
+            });
+
+            // --- Initial Load ---
+            init();
+        };
+    </script>
+
+</body>
+</html>
