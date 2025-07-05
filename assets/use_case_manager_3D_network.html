@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moria AI Labs - Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F3F4F6;
+        }
+        #interactive-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            cursor: grab;
+        }
+        #interactive-canvas.grabbing {
+            cursor: grabbing;
+        }
+        .content-overlay {
+            position: relative;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .ui-element {
+            background-color: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+        }
+        .use-case-link {
+            transition: background-color 0.3s ease;
+        }
+        .use-case-link:hover {
+            background-color: #374151;
+        }
+        header {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <canvas id="interactive-canvas"></canvas>
+
+    <div class="content-overlay min-h-screen flex flex-col items-center justify-center p-4 sm:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight">Moria AI Labs</h1>
+            <p class="mt-4 text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
+                Exploring the frontiers of Artificial Intelligence. Click on a node to discover our projects.
+            </p>
+        </header>
+
+        <div id="use-case-display" class="w-full max-w-3xl mx-auto transition-opacity duration-500 opacity-0">
+            <div class="ui-element rounded-xl shadow-2xl p-6 sm:p-8">
+                <h2 id="use-case-title" class="text-2xl sm:text-3xl font-bold text-white mb-3"></h2>
+                <p id="use-case-description" class="text-gray-300 text-base sm:text-lg mb-6"></p>
+                <a id="use-case-link" href="#" target="_blank" class="inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-300">
+                    View Project
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend for Color Codes -->
+    <div id="legend" class="absolute bottom-4 left-4 ui-element p-4 rounded-lg text-sm shadow-lg">
+        <h3 class="font-bold mb-2 text-white">Categories</h3>
+        <ul class="text-gray-300 space-y-1">
+            <li class="flex items-center">
+                <span class="w-3 h-3 rounded-full mr-2" style="background-color: #3b82f6;"></span>
+                <span>NLP</span>
+            </li>
+            <li class="flex items-center">
+                <span class="w-3 h-3 rounded-full mr-2" style="background-color: #10b981;"></span>
+                <span>Data Visualization</span>
+            </li>
+            <li class="flex items-center">
+                <span class="w-3 h-3 rounded-full mr-2" style="background-color: #f59e0b;"></span>
+                <span>Testing and Learning</span>
+            </li>
+            <li class="flex items-center">
+                <span class="w-3 h-3 rounded-full mr-2" style="background-color: #8b5cf6;"></span>
+                <span>Other</span>
+            </li>
+        </ul>
+    </div>
+
+
+    <script type="module">
+        // --- THREE.JS Scene Setup ---
+        let scene, camera, renderer, nodes = [], lines = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let INTERSECTED;
+
+        // --- Interaction State ---
+        let isRotating = true;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        const canvas = document.getElementById('interactive-canvas');
+
+        // --- Use Case Data with Categories ---
+        const useCases = [
+            { title: "Social Listening and Natural Language Processing", description: "How Graph Theory and AI Revolutionize Brand Advocacy", url: "https://moria-ai-labs.github.io/use_case1/", category: "NLP" },
+            { title: "AB Testing Reimagined", description: "Unlocking Customer Insights: A Graph-Powered Approach to A/B Testing at Lonely Mountain Online Bank", url: "https://moria-ai-labs.github.io/use_case2/", category: "Testing and Learning" },
+            { title: "Unsupervised Learning - validation", description: "How might we interpret and validate clusterings in a visual way, leveraging 3D plots?", url: "https://moria-ai-labs.github.io/use_case3/", category: "Data Visualization" },
+            { title: "Network Path Optimization", description: "How might we define a winning strategy for the gold grabbing game in a tree?", url: "https://moria-ai-labs.github.io/use_case4/", category: "Other" },
+            { title: "Natural Language Processing - edit distance", description: "How might we visualize the edit distance procedure?", url: "https://moria-ai-labs.github.io/use_case5/", category: "NLP" },
+            { title: "Unsupervised Learning - understanding", description: "How might we visualize kNN algorithm in a very intuitive way?.", url: "https://moria-ai-labs.github.io/use_case6/", category: "Data Visualization" },
+            { title: "Graph Representation of Data Processing", description: "How might we visualize CTEs in an intuitive way?", url: "https://moria-ai-labs.github.io/use_case7/", category: "Data Visualization" },
+            { title: "Human Design", description: "An experiment on digital art", url: "https://moria-ai-labs.github.io/use_case8/", category: "Other" },
+            { title: "AB Testing - understanding", description: "How might we visualize AB tests in an intuitive way?", url: "https://moria-ai-labs.github.io/use_case9/", category: "Testing and Learning" },
+            { title: "Probability and Random Walks Reimagined", description: "How might we understand probability and statistics with a simple Galton Board?", url: "https://moria-ai-labs.github.io/use_case10/", category: "Data Visualization" },
+            { title: "Agentic Search for small businesses", description: "How might we bring visibility to small and minority-owned businesses in the Agenti Era", url: "https://moria-ai-labs.github.io/use_case11/", category: "NLP" },
+            { title: "Natural Language Processing - typo correction", description: "How might we understand how typos affect our written language?", url: "https://moria-ai-labs.github.io/use_case12/", category: "NLP" }
+        ];
+
+        // --- Keyword Processing for Co-occurrence Network ---
+        const stopWords = new Set(['a', 'an', 'the', 'in', 'on', 'for', 'with', 'how', 'might', 'we', 'and', 'to', 'is', 'of', 'at', 'it', 'in', 'a', 'the', 'our', 'an', 'approach']);
+        useCases.forEach(useCase => {
+            const words = useCase.description.toLowerCase().replace(/[?.:,]/g, '').split(/\s+/);
+            useCase.keywords = words.filter(word => !stopWords.has(word) && word.length > 2);
+        });
+
+        // --- Color mapping for categories ---
+        const categoryColors = {
+            "NLP": 0x3b82f6, // Blue
+            "Data Visualization": 0x10b981, // Green
+            "Testing and Learning": 0xf59e0b, // Amber
+            "Other": 0x8b5cf6 // Violet
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 20;
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // --- Create Nodes (Use Cases) with Category Colors ---
+            const geometry = new THREE.IcosahedronGeometry(0.35, 0); 
+            useCases.forEach((useCase, i) => {
+                const color = categoryColors[useCase.category] || categoryColors["Other"];
+                const material = new THREE.MeshPhongMaterial({ color: color, emissive: 0x111827, shininess: 50 });
+                const node = new THREE.Mesh(geometry, material);
+                const phi = Math.acos(-1 + (2 * i) / useCases.length);
+                const theta = Math.sqrt(useCases.length * Math.PI) * phi;
+                node.position.setFromSphericalCoords(10, phi, theta);
+                node.userData = useCase;
+                nodes.push(node);
+                scene.add(node);
+            });
+
+            // --- Create Lines based on Word Co-occurrence ---
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const keywords1 = new Set(nodes[i].userData.keywords);
+                    const keywords2 = new Set(nodes[j].userData.keywords);
+                    
+                    const intersection = new Set([...keywords1].filter(x => keywords2.has(x)));
+
+                    if (intersection.size > 0) {
+                        const opacity = Math.min(0.15 + intersection.size * 0.2, 0.7);
+                        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4A5568, transparent: true, opacity: opacity });
+                        
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([nodes[i].position, nodes[j].position]);
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        lines.push(line);
+                        scene.add(line);
+                    }
+                }
+            }
+
+            // --- Event Listeners ---
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousedown', onMouseDown, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('mouseup', onMouseUp, false);
+            document.addEventListener('click', onMouseClick, false);
+
+            animate();
+        }
+
+        // --- Event Handlers ---
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function onMouseDown(event) {
+            if (event.target === canvas) {
+                isDragging = true;
+                canvas.classList.add('grabbing');
+                previousMousePosition.x = event.clientX;
+                previousMousePosition.y = event.clientY;
+            }
+        }
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            if (isDragging) {
+                isRotating = false;
+                const deltaMove = {
+                    x: event.clientX - previousMousePosition.x,
+                    y: event.clientY - previousMousePosition.y
+                };
+                scene.rotation.y += deltaMove.x * 0.005;
+                scene.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition.x = event.clientX;
+                previousMousePosition.y = event.clientY;
+            }
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+            canvas.classList.remove('grabbing');
+            const displayDiv = document.getElementById('use-case-display');
+            if (displayDiv.style.opacity === '0') {
+                isRotating = true;
+            }
+        }
+
+        function onMouseClick(event) {
+            setTimeout(() => {
+                if (isDragging) {
+                    isDragging = false;
+                    return;
+                }
+
+                if (INTERSECTED) {
+                    displayUseCase(INTERSECTED.userData);
+                } else {
+                    const card = document.querySelector('.ui-element');
+                    if (getComputedStyle(card.parentElement).opacity === '1' && !card.contains(event.target)) {
+                        hideUseCase();
+                    }
+                }
+            }, 10);
+        }
+
+        // --- UI Functions ---
+        function displayUseCase(useCase) {
+            isRotating = false;
+            const displayDiv = document.getElementById('use-case-display');
+            document.getElementById('use-case-title').textContent = useCase.title;
+            document.getElementById('use-case-description').textContent = useCase.description;
+            document.getElementById('use-case-link').href = useCase.url;
+            displayDiv.style.opacity = 1;
+        }
+
+        function hideUseCase() {
+            isRotating = true;
+            const displayDiv = document.getElementById('use-case-display');
+            displayDiv.style.opacity = 0;
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isRotating && !isDragging) {
+                scene.rotation.y += 0.0005;
+                scene.rotation.x += 0.0002;
+            }
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes);
+
+            if (intersects.length > 0) {
+                if (INTERSECTED != intersects[0].object) {
+                    if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                    INTERSECTED = intersects[0].object;
+                    INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+                    INTERSECTED.material.emissive.setHex(0x34d399); // Highlight color remains consistent
+                    canvas.style.cursor = 'pointer';
+                }
+            } else {
+                if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                INTERSECTED = null;
+                canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
