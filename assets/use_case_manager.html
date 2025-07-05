@@ -99,6 +99,17 @@
             { title: "Natural Language Processing - typo correction", description: "How might we understand how typos affect our written language?", url: "https://moria-ai-labs.github.io/use_case12/" }
         ];
 
+        // --- Keyword Processing for Co-occurrence Network ---
+        // Define common words to ignore in descriptions
+        const stopWords = new Set(['a', 'an', 'the', 'in', 'on', 'for', 'with', 'how', 'might', 'we', 'and', 'to', 'is', 'of', 'at', 'it', 'in', 'a', 'the', 'our', 'an', 'approach']);
+
+        // Process descriptions to extract keywords
+        useCases.forEach(useCase => {
+            const words = useCase.description.toLowerCase().replace(/[?.:,]/g, '').split(/\s+/);
+            useCase.keywords = words.filter(word => !stopWords.has(word) && word.length > 2);
+        });
+
+
         function init() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -125,10 +136,21 @@
                 scene.add(node);
             });
 
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x374151, transparent: true, opacity: 0.5 });
+            // --- Create Lines based on Word Co-occurrence ---
             for (let i = 0; i < nodes.length; i++) {
                 for (let j = i + 1; j < nodes.length; j++) {
-                    if (Math.random() > 0.85) {
+                    const keywords1 = new Set(nodes[i].userData.keywords);
+                    const keywords2 = new Set(nodes[j].userData.keywords);
+                    
+                    // Find the intersection of the two keyword sets
+                    const intersection = new Set([...keywords1].filter(x => keywords2.has(x)));
+
+                    // If there's at least one shared keyword, create a connection
+                    if (intersection.size > 0) {
+                        // Make the line more opaque for stronger connections
+                        const opacity = Math.min(0.15 + intersection.size * 0.2, 0.7);
+                        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4A5568, transparent: true, opacity: opacity });
+                        
                         const lineGeometry = new THREE.BufferGeometry().setFromPoints([nodes[i].position, nodes[j].position]);
                         const line = new THREE.Line(lineGeometry, lineMaterial);
                         lines.push(line);
@@ -155,7 +177,6 @@
         }
         
         function onMouseDown(event) {
-            // Only start dragging if the click is on the canvas
             if (event.target === canvas) {
                 isDragging = true;
                 canvas.classList.add('grabbing');
@@ -165,21 +186,17 @@
         }
 
         function onMouseMove(event) {
-            // Update mouse position for raycasting
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
-            // Handle dragging rotation
             if (isDragging) {
-                isRotating = false; // Stop auto-rotation when user interacts
+                isRotating = false;
                 const deltaMove = {
                     x: event.clientX - previousMousePosition.x,
                     y: event.clientY - previousMousePosition.y
                 };
-
                 scene.rotation.y += deltaMove.x * 0.005;
                 scene.rotation.x += deltaMove.y * 0.005;
-
                 previousMousePosition.x = event.clientX;
                 previousMousePosition.y = event.clientY;
             }
@@ -188,7 +205,6 @@
         function onMouseUp() {
             isDragging = false;
             canvas.classList.remove('grabbing');
-            // Resume rotation only if no card is open
             const displayDiv = document.getElementById('use-case-display');
             if (displayDiv.style.opacity === '0') {
                 isRotating = true;
@@ -196,21 +212,27 @@
         }
 
         function onMouseClick(event) {
-            if (isDragging) return; // Don't trigger click if we just finished dragging
-
-            if (INTERSECTED) {
-                displayUseCase(INTERSECTED.userData);
-            } else {
-                const card = document.querySelector('.use-case-card');
-                if (getComputedStyle(card.parentElement).opacity === '1' && !card.contains(event.target)) {
-                    hideUseCase();
+            // A short delay to distinguish between a drag-and-release and a true click
+            setTimeout(() => {
+                if (isDragging) {
+                    isDragging = false; // Reset dragging flag after a short delay
+                    return;
                 }
-            }
+
+                if (INTERSECTED) {
+                    displayUseCase(INTERSECTED.userData);
+                } else {
+                    const card = document.querySelector('.use-case-card');
+                    if (getComputedStyle(card.parentElement).opacity === '1' && !card.contains(event.target)) {
+                        hideUseCase();
+                    }
+                }
+            }, 10);
         }
 
         // --- UI Functions ---
         function displayUseCase(useCase) {
-            isRotating = false; // Stop rotation when a card is shown
+            isRotating = false;
             const displayDiv = document.getElementById('use-case-display');
             document.getElementById('use-case-title').textContent = useCase.title;
             document.getElementById('use-case-description').textContent = useCase.description;
@@ -219,7 +241,7 @@
         }
 
         function hideUseCase() {
-            isRotating = true; // Resume rotation when card is hidden
+            isRotating = true;
             const displayDiv = document.getElementById('use-case-display');
             displayDiv.style.opacity = 0;
         }
@@ -228,13 +250,11 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // Automatic rotation
             if (isRotating && !isDragging) {
                 scene.rotation.y += 0.0005;
                 scene.rotation.x += 0.0002;
             }
 
-            // Raycasting for hover effect
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(nodes);
 
