@@ -1,7 +1,7 @@
 ---
 layout: page
 title: "Typo Score Keyboard"
-permalink: /use_case10/
+permalink: /use_case12/
 ---
 
 # How might we visualize the propensity of a letter to be part of a typo? 
