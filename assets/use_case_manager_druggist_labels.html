@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Portfolio of Digital Endeavors & Sundry Experiments</title>
+    <style>
+        /*
+         * FONT IMPORT
+         * We are using classic serif fonts to evoke a 19th-century feel.
+         * Playfair Display: A high-contrast display font for titles.
+         * Cormorant Garamond: An elegant serif for body text.
+         * Roboto Slab: A clean slab serif for links and accents.
+        */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Cormorant+Garamond:wght@400;700&family=Roboto+Slab:wght@400&display=swap');
+
+        /*
+         * GENERAL BODY STYLING
+         * The background color is a warm, aged paper tone.
+         * The primary text color is a dark sepia for a vintage ink look.
+        */
+        body {
+            background-color: #f4f0e8;
+            font-family: 'Cormorant Garamond', serif;
+            color: #4a3c2f;
+            padding: 2rem 1rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /*
+         * HEADER & TITLE STYLING
+         * The main title is large and prominent, with a complex double border underneath
+         * created using pseudo-elements for a more decorative, letterpress look.
+        */
+        .portfolio-header {
+            margin-bottom: 3rem;
+        }
+
+        .portfolio-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 6vw, 4rem); /* Responsive font size */
+            font-weight: 700;
+            margin: 0 auto 1.5rem;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 1rem;
+        }
+
+        .portfolio-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 5%;
+            width: 90%;
+            height: 3px;
+            background: #4a3c2f;
+            border-bottom: 1px solid #4a3c2f;
+        }
+
+        .portfolio-subtitle {
+            font-family: 'Roboto Slab', serif;
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            color: #6e5f52;
+            max-width: 600px;
+            margin: 0 auto;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /*
+         * PORTFOLIO GRID
+         * A responsive CSS grid that arranges the project labels.
+         * It adjusts the number of columns based on screen width.
+        */
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 2.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /*
+         * PROJECT LABEL STYLING
+         * This is the core of the design. Each label is styled to look like an
+         * ornate, printed specimen from the 1885 book.
+         * - A subtle box-shadow gives a slight lift off the page.
+         * - Multiple pseudo-elements create a layered, decorative border effect.
+         * - An SVG flourish is used as a background image for ornamentation without extra HTML.
+        */
+        .project-label {
+            background-color: #faf6f0;
+            border: 1px solid #d3c5ac;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            position: relative;
+            box-shadow: 4px 4px 12px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='20' viewBox='0 0 100 20'%3E%3Cpath d='M2,10 C20,-5 80,-5 98,10 M2,12 C20,27 80,27 98,12' stroke='%23c5b8a0' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center 1rem;
+            background-size: 80px 16px;
+        }
+        
+        .project-label:hover {
+            transform: translateY(-5px);
+            box-shadow: 6px 6px 16px rgba(0,0,0,0.12);
+        }
+
+        /* Inner decorative border */
+        .project-label::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border: 1px solid #d3c5ac;
+            pointer-events: none;
+        }
+        
+        /* Dashed inner border for more texture */
+        .project-label::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px dashed #d3c5ac;
+            pointer-events: none;
+        }
+
+        .project-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #3a2d21;
+            margin: 1.5rem 0;
+            line-height: 1.3;
+        }
+
+        .project-description {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            flex-grow: 1;
+            margin-bottom: 2rem;
+        }
+
+        .project-link {
+            display: inline-block;
+            font-family: 'Roboto Slab', serif;
+            text-decoration: none;
+            color: #4a3c2f;
+            background-color: transparent;
+            padding: 0.6rem 1.2rem;
+            border: 1px solid #4a3c2f;
+            font-weight: 400;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        .project-link:hover {
+            background-color: #4a3c2f;
+            color: #faf6f0;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="portfolio-header">
+        <h1 class="portfolio-title">Specimens of Digital Endeavors</h1>
+        <p class="portfolio-subtitle">A Curated Collection of Noteworthy Projects &amp; Experiments &mdash; Anno Domini 2025</p>
+    </header>
+
+    <main>
+        <div class="portfolio-grid" id="portfolio-container">
+            <!-- Project labels will be dynamically inserted here by JavaScript -->
+        </div>
+    </main>
+
+    <script>
+        // --- Use Case Data ---  
+        // This array holds all the project information.
+        const useCases = [
+            { title: "Social Listening & Natural Language Processing", description: "How Graph Theory and AI Revolutionize Brand Advocacy", url: "https://moria-ai-labs.github.io/use_case1/" },
+            { title: "A/B Testing Reimagined", description: "Unlocking Customer Insights: A Graph-Powered Approach to A/B Testing at Lonely Mountain Online Bank", url: "https://moria-ai-labs.github.io/use_case2/" },
+            { title: "Unsupervised Learning Validation", description: "How might we interpret and validate clusterings in a visual way, leveraging 3D plots?", url: "https://moria-ai-labs.github.io/use_case3/" },
+            { title: "Network Path Optimization", description: "How might we define a winning strategy for the gold grabbing game in a tree?", url: "https://moria-ai-labs.github.io/use_case4/" },
+            { title: "Natural Language Processing: Edit Distance", description: "How might we visualize the edit distance procedure?", url: "https://moria-ai-labs.github.io/use_case5/" },
+            { title: "Unsupervised Learning: k-NN", description: "How might we visualize the kNN algorithm in a very intuitive way?.", url: "https://moria-ai-labs.github.io/use_case6/" },
+            { title: "Graph Representation of Data Processing", description: "How might we visualize Common Table Expressions (CTEs) in an intuitive way?", url: "https://moria-ai-labs.github.io/use_case7/" },
+            { title: "Human Design", description: "An experiment on digital art and generative forms", url: "https://moria-ai-labs.github.io/use_case8/" },
+            { title: "A/B Testing: Understanding", description: "How might we visualize the results and significance of A/B tests in an intuitive way?", url: "https://moria-ai-labs.github.io/use_case9/" },
+            { title: "Probability & Random Walks Reimagined", description: "How might we understand probability and statistics with a simple Galton Board?", url: "https://moria-ai-labs.github.io/use_case10/" },
+            { title: "Agentic Search for Small Businesses", description: "How might we bring visibility to small and minority-owned businesses in the Agentic Era", url: "https://moria-ai-labs.github.io/use_case11/" },
+            { title: "Natural Language Processing: Typo Correction", description: "How might we understand how typos affect our written language?", url: "https://moria-ai-labs.github.io/use_case12/" }
+        ];
+
+        // Get the container element where the portfolio items will be placed.
+        const container = document.getElementById('portfolio-container');
+
+        // Loop through each project in the useCases array.
+        useCases.forEach(project => {
+            // Create a new div element for the project label.
+            const projectElement = document.createElement('div');
+            projectElement.className = 'project-label';
+
+            // Set the inner HTML of the new element using a template literal.
+            // This populates the card with the project's title, description, and URL.
+            projectElement.innerHTML = `
+                <div>
+                    <h2 class="project-title">${project.title}</h2>
+                    <p class="project-description">${project.description}</p>
+                </div>
+                <a href="${project.url}" class="project-link" target="_blank" rel="noopener noreferrer">Examine Specimen</a>
+            `;
+
+            // Append the newly created project element to the grid container.
+            container.appendChild(projectElement);
+        });
+    </script>
+
+</body>
+</html>
