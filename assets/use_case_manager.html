@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moria AI Labs - Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F3F4F6;
+        }
+        #interactive-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        .content-overlay {
+            position: relative;
+            z-index: 1;
+        }
+        .use-case-card {
+            background-color: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .use-case-link {
+            transition: background-color 0.3s ease;
+        }
+        .use-case-link:hover {
+            background-color: #374151;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <canvas id="interactive-canvas"></canvas>
+
+    <div class="content-overlay min-h-screen flex flex-col items-center justify-center p-4 sm:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight">Moria AI Labs</h1>
+            <p class="mt-4 text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
+                Exploring the frontiers of Artificial Intelligence. Click on a node to discover our projects.
+            </p>
+        </header>
+
+        <div id="use-case-display" class="w-full max-w-3xl mx-auto transition-opacity duration-500 opacity-0">
+            <div class="use-case-card rounded-xl shadow-2xl p-6 sm:p-8">
+                <h2 id="use-case-title" class="text-2xl sm:text-3xl font-bold text-white mb-3"></h2>
+                <p id="use-case-description" class="text-gray-300 text-base sm:text-lg mb-6"></p>
+                <a id="use-case-link" href="#" target="_blank" class="inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-300">
+                    View Project
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // --- THREE.JS Scene Setup ---
+        let scene, camera, renderer, nodes = [], lines = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let INTERSECTED;
+
+        // --- Use Case Data ---
+        // ** IMPORTANT: Replace this with your actual use cases **
+        const useCases = [
+            { title: "Natural Language Processing for Text Summarization", description: "An AI model that condenses long articles into concise summaries, saving time and improving information processing.", url: "https://github.com/moria-ai-labs/nlp-summarization" },
+            { title: "Image Recognition for Autonomous Vehicles", description: "Advanced computer vision models that identify objects, pedestrians, and traffic signs to enable safe self-driving.", url: "https://github.com/moria-ai-labs/av-vision" },
+            { title: "Predictive Analytics for Financial Markets", description: "Using machine learning to forecast stock market trends and identify potential investment opportunities.", url: "https://github.com/moria-ai-labs/financial-prediction" },
+            { title: "Generative Adversarial Networks for Art", description: "Creating unique and compelling works of art using AI, pushing the boundaries of creativity.", url: "https://github.com/moria-ai-labs/gan-art" },
+            { title: "Reinforcement Learning for Game AI", description: "Developing intelligent agents that can learn and master complex games through trial and error.", url: "https://github.com/moria-ai-labs/rl-gaming" },
+            { title: "AI-Powered Drug Discovery", description: "Accelerating the process of discovering new medicines by using AI to analyze biological data.", url: "https://github.com/moria-ai-labs/drug-discovery" },
+            { title: "Anomaly Detection in Cybersecurity", description: "Identifying unusual patterns in network traffic to detect and prevent cyberattacks in real-time.", url: "https://github.com/moria-ai-labs/cyber-security" },
+            { title: "Personalized Recommendation Engines", description: "A system that suggests content, products, or services tailored to individual user preferences.", url: "https://github.com/moria-ai-labs/recommender-systems" },
+            { title: "AI for Climate Change Modeling", description: "Using complex algorithms to simulate climate patterns and predict the impact of environmental changes.", url: "https://github.com/moria-ai-labs/climate-ai" },
+            { title: "Speech Recognition and Synthesis", description: "Developing natural and human-like voice interfaces for a variety of applications.", url: "https://github.com/moria-ai-labs/speech-tech" },
+            { title: "Robotics and Automated Systems", description: "Building intelligent robots that can perform complex tasks in manufacturing, logistics, and healthcare.", url: "https://github.com/moria-ai-labs/robotics" },
+            { title: "Ethical AI and Bias Detection", description: "Research and development of tools to ensure fairness, transparency, and accountability in AI systems.", url: "https://github.com/moria-ai-labs/ethical-ai" }
+        ];
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 20;
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('interactive-canvas'), antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Create Nodes (Use Cases)
+            const geometry = new THREE.SphereGeometry(0.3, 32, 32);
+            useCases.forEach((useCase, i) => {
+                const material = new THREE.MeshPhongMaterial({ color: 0x4f46e5, emissive: 0x111827, shininess: 50 });
+                const node = new THREE.Mesh(geometry, material);
+                
+                // Position nodes in a sphere
+                const phi = Math.acos(-1 + (2 * i) / useCases.length);
+                const theta = Math.sqrt(useCases.length * Math.PI) * phi;
+                
+                node.position.setFromSphericalCoords(10, phi, theta);
+
+                node.userData = useCase;
+                nodes.push(node);
+                scene.add(node);
+            });
+
+            // Create Lines connecting nodes
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x374151, transparent: true, opacity: 0.5 });
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    if (Math.random() > 0.85) { // Randomly connect some nodes
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([nodes[i].position, nodes[j].position]);
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        lines.push(line);
+                        scene.add(line);
+                    }
+                }
+            }
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('click', onMouseClick, false);
+
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            event.preventDefault();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onMouseClick() {
+            if (INTERSECTED) {
+                displayUseCase(INTERSECTED.userData);
+            }
+        }
+
+        function displayUseCase(useCase) {
+            const displayDiv = document.getElementById('use-case-display');
+            document.getElementById('use-case-title').textContent = useCase.title;
+            document.getElementById('use-case-description').textContent = useCase.description;
+            const link = document.getElementById('use-case-link');
+            link.href = useCase.url;
+
+            if (displayDiv.style.opacity === '0') {
+                displayDiv.style.opacity = 1;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate the entire scene for a dynamic effect
+            scene.rotation.y += 0.0005;
+            scene.rotation.x += 0.0002;
+
+            // Raycasting for mouse interaction
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes);
+
+            if (intersects.length > 0) {
+                if (INTERSECTED != intersects[0].object) {
+                    if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                    INTERSECTED = intersects[0].object;
+                    INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+                    INTERSECTED.material.emissive.setHex(0x34d399); // Highlight color
+                    document.body.style.cursor = 'pointer';
+                }
+            } else {
+                if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                INTERSECTED = null;
+                document.body.style.cursor = 'default';
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
