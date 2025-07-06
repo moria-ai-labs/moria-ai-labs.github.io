@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Texto Interactivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: #1f2937;
+            color: white;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        #chart-container svg {
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 md:p-8">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">Visualizador de Texto Interactivo</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Introduce palabras y elige cómo visualizarlas.</p>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6 max-w-lg mx-auto items-center">
+             <input type="text" id="text-input" class="flex-grow w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ej: manzana, plátano, manzana">
+            <button id="add-button" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                Añadir
+            </button>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-4 mb-8 max-w-lg mx-auto items-center">
+            <label for="vis-select" class="text-gray-700 dark:text-gray-300 font-medium">Tipo de Gráfico:</label>
+            <select id="vis-select" class="flex-grow bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                <option value="pie">Gráfico Circular</option>
+                <option value="bubble">Gráfico de Burbujas</option>
+            </select>
+        </div>
+
+
+        <!-- Chart and Data Display -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div id="chart-container" class="w-full h-80 md:h-96"></div>
+            <div id="data-table-container" class="w-full max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                 <h2 class="text-xl font-semibold mb-4 text-center">Recuento de Palabras</h2>
+                 <div id="data-table">
+                     <p class="text-center text-gray-500 dark:text-gray-400">Aún no hay datos. ¡Añade algunas palabras!</p>
+                 </div>
+            </div>
+        </div>
+         <div class="text-center mt-8">
+            <button id="reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                Reiniciar
+            </button>
+        </div>
+    </div>
+
+    <div class="tooltip"></div>
+
+    <script>
+        // --- Data Store ---
+        let wordData = {};
+        let currentVisType = 'pie';
+
+        // --- DOM Elements ---
+        const textInput = document.getElementById('text-input');
+        const addButton = document.getElementById('add-button');
+        const resetButton = document.getElementById('reset-button');
+        const visSelector = document.getElementById('vis-select');
+        const chartContainer = document.getElementById('chart-container');
+        const dataTableContainer = document.getElementById('data-table');
+        const tooltip = d3.select(".tooltip");
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        // --- Main Update Function ---
+        function updateVisualization() {
+            // Clear previous visualization
+            chartContainer.innerHTML = '';
+
+            const dataArray = Object.entries(wordData).map(([key, value]) => ({ key, value }));
+
+            if (dataArray.length === 0) {
+                updateDataTable(); // Still update table to show "No data"
+                return;
+            }
+
+            // Call the correct drawing function based on selection
+            switch (currentVisType) {
+                case 'pie':
+                    drawPieChart(dataArray);
+                    break;
+                case 'bubble':
+                    drawBubbleChart(dataArray);
+                    break;
+            }
+            updateDataTable();
+        }
+
+        // --- Visualization Drawing Functions ---
+
+        /**
+         * Draws a Pie Chart.
+         * @param {Array} data - The data to visualize.
+         */
+        function drawPieChart(data) {
+            const { width, height } = chartContainer.getBoundingClientRect();
+            const radius = Math.min(width, height) / 2 - 20;
+
+            const svg = d3.select("#chart-container")
+                .append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+            const pie = d3.pie().value(d => d.value).sort(null);
+            const arc = d3.arc().innerRadius(0).outerRadius(radius);
+            const labelArc = d3.arc().innerRadius(radius * 0.7).outerRadius(radius * 0.7);
+
+            const data_ready = pie(data);
+
+            svg.selectAll('path')
+                .data(data_ready)
+                .enter()
+                .append('path')
+                .attr('d', arc)
+                .attr('fill', d => color(d.data.key))
+                .attr('stroke', 'white')
+                .style('stroke-width', '2px')
+                .on("mouseover", (event, d) => {
+                    tooltip.style("opacity", 1);
+                    const percentage = ((d.data.value / d3.sum(data, item => item.value)) * 100).toFixed(1);
+                    tooltip.html(`${d.data.key}: ${d.data.value} (${percentage}%)`)
+                           .style("left", (event.pageX + 10) + "px")
+                           .style("top", (event.pageY - 15) + "px");
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            svg.selectAll('text')
+                .data(data_ready)
+                .enter()
+                .append('text')
+                .attr("transform", d => `translate(${labelArc.centroid(d)})`)
+                .attr("dy", "0.35em")
+                .style("text-anchor", "middle").style("font-size", "12px").style("fill", "white").style("pointer-events", "none")
+                .text(d => d.data.key);
+        }
+
+        /**
+         * Draws a Bubble Chart.
+         * @param {Array} data - The data to visualize.
+         */
+        function drawBubbleChart(data) {
+            const { width, height } = chartContainer.getBoundingClientRect();
+            
+            const root = d3.hierarchy({ children: data }).sum(d => d.value);
+            const pack = d3.pack().size([width - 2, height - 2]).padding(5);
+            const nodes = pack(root).leaves();
+
+            const svg = d3.select("#chart-container")
+                .append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${width} ${height}`);
+
+            const node = svg.selectAll("g")
+                .data(nodes)
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("r", d => d.r)
+                .attr("fill", d => color(d.data.key))
+                .attr("stroke", d => d3.rgb(color(d.data.key)).darker())
+                .attr("stroke-width", 2)
+                 .on("mouseover", (event, d) => {
+                    tooltip.style("opacity", 1);
+                    tooltip.html(`${d.data.key}: ${d.data.value}`)
+                           .style("left", (event.pageX + 10) + "px")
+                           .style("top", (event.pageY - 15) + "px");
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            node.append("text")
+                .attr("dy", ".3em")
+                .style("text-anchor", "middle")
+                .text(d => d.data.key.substring(0, d.r / 3))
+                .style("font-size", d => d.r / 3)
+                .style("fill", "white")
+                .style("pointer-events", "none");
+        }
+
+        // --- Data Table Function ---
+        function updateDataTable() {
+            dataTableContainer.innerHTML = '';
+            const sortedWords = Object.entries(wordData).sort((a, b) => b[1] - a[1]);
+
+            if (sortedWords.length === 0) {
+                 dataTableContainer.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400">Aún no hay datos. ¡Añade algunas palabras!</p>';
+                 return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'w-full text-left';
+            table.innerHTML = `
+                <thead class="border-b border-gray-300 dark:border-gray-600">
+                    <tr>
+                        <th class="p-2">Palabra</th>
+                        <th class="p-2 text-right">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>`;
+            const tbody = table.querySelector('tbody');
+            sortedWords.forEach(([word, count]) => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 dark:border-gray-600';
+                row.innerHTML = `<td class="p-2 flex items-center"><span class="w-3 h-3 rounded-full mr-3" style="background-color: ${color(word)}"></span>${word}</td><td class="p-2 text-right font-mono">${count}</td>`;
+                tbody.appendChild(row);
+            });
+            dataTableContainer.appendChild(table);
+        }
+
+        // --- Event Handlers ---
+        function addWord() {
+            const word = textInput.value.trim().toLowerCase();
+            if (word) {
+                wordData[word] = (wordData[word] || 0) + 1;
+                textInput.value = '';
+                updateVisualization();
+            }
+        }
+        
+        function resetApp() {
+            wordData = {};
+            updateVisualization();
+        }
+
+        // --- Event Listeners ---
+        addButton.addEventListener('click', addWord);
+        resetButton.addEventListener('click', resetApp);
+        textInput.addEventListener('keypress', e => { if (e.key === 'Enter') addWord(); });
+        visSelector.addEventListener('change', e => {
+            currentVisType = e.target.value;
+            updateVisualization();
+        });
+
+        // Initial render
+        updateVisualization();
+
+        // Handle window resizing
+        window.onresize = updateVisualization;
+    </script>
+</body>
+</html>
