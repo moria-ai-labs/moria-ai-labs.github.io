@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Interstate Subway Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+        }
+        .map-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            cursor: grab;
+            position: relative;
+        }
+        .map-svg {
+            transform-origin: 0 0;
+            transition: transform 0.2s ease-out;
+        }
+        .interstate-line {
+            fill: none;
+            stroke-width: 6px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0.9;
+            transition: all 0.2s ease;
+        }
+        .interstate-line:hover {
+            stroke-width: 10px;
+            opacity: 1;
+        }
+        .city-station {
+            transition: all 0.2s ease;
+        }
+        .city-station .station-ring {
+            fill: #111827; /* bg-gray-900 */
+            stroke-width: 3px;
+            transition: all 0.2s ease;
+        }
+        .city-station .station-dot {
+            stroke-width: 0;
+            transition: all 0.2s ease;
+        }
+        .city-station:hover .station-ring {
+            stroke-width: 4px;
+        }
+        .city-station:hover .station-dot {
+            r: 6;
+        }
+        .city-label {
+            font-size: 12px;
+            font-weight: 500;
+            fill: #f3f4f6; /* gray-100 */
+            pointer-events: none;
+            text-anchor: middle;
+            paint-order: stroke;
+            stroke: #111827; /* bg-gray-900 */
+            stroke-width: 3px;
+            stroke-linecap: butt;
+            stroke-linejoin: miter;
+        }
+        .interstate-label {
+            font-size: 10px;
+            font-weight: bold;
+            fill: white;
+            pointer-events: none;
+        }
+        #tooltip {
+            position: absolute;
+            display: none;
+            background-color: rgba(17, 24, 39, 0.9); /* bg-gray-900 with opacity */
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 1px solid #374151; /* border-gray-700 */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(17, 24, 39, 0.8);
+            padding: 8px;
+            border-radius: 8px;
+            display: flex;
+            gap: 8px;
+            border: 1px solid #374151;
+        }
+        .control-btn {
+            background-color: #374151; /* bg-gray-700 */
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .control-btn:hover {
+            background-color: #4b5563; /* bg-gray-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen m-0">
+
+    <div id="app" class="w-full h-full flex flex-col">
+        <header class="bg-gray-800 p-4 text-center shadow-md z-10">
+            <h1 class="text-2xl font-bold tracking-wider">U.S. Interstate System</h1>
+            <p class="text-sm text-gray-400">A Subway-Style Representation</p>
+        </header>
+        
+        <div id="map-container" class="map-container flex-grow">
+            <svg id="map-svg" class="map-svg" width="2000" height="1200"></svg>
+            <div id="tooltip"></div>
+        </div>
+
+        <div class="controls z-10">
+            <button id="zoom-in" class="control-btn">+</button>
+            <button id="zoom-out" class="control-btn">-</button>
+            <button id="reset-view" class="control-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DATA ---
+        // Simplified grid coordinates for major cities. Not geographically accurate.
+        const cities = {
+            'Seattle': { x: 100, y: 100 },
+            'Portland': { x: 100, y: 150 },
+            'San Francisco': { x: 80, y: 400 },
+            'Los Angeles': { x: 150, y: 550 },
+            'San Diego': { x: 170, y: 600 },
+            'Las Vegas': { x: 250, y: 450 },
+            'Phoenix': { x: 300, y: 600 },
+            'Salt Lake City': { x: 400, y: 300 },
+            'Denver': { x: 600, y: 350 },
+            'Billings': { x: 550, y: 150 },
+            'Fargo': { x: 800, y: 150 },
+            'Minneapolis': { x: 900, y: 250 },
+            'Omaha': { x: 850, y: 400 },
+            'Kansas City': { x: 900, y: 500 },
+            'Oklahoma City': { x: 850, y: 600 },
+            'Dallas': { x: 880, y: 700 },
+            'Houston': { x: 920, y: 800 },
+            'San Antonio': { x: 850, y: 820 },
+            'El Paso': { x: 550, y: 750 },
+            'Albuquerque': { x: 580, y: 580 },
+            'Cheyenne': { x: 620, y: 280 },
+            'Chicago': { x: 1100, y: 350 },
+            'St. Louis': { x: 1050, y: 500 },
+            'Memphis': { x: 1050, y: 650 },
+            'New Orleans': { x: 1080, y: 800 },
+            'Indianapolis': { x: 1200, y: 450 },
+            'Detroit': { x: 1250, y: 350 },
+            'Cleveland': { x: 1300, y: 400 },
+            'Pittsburgh': { x: 1380, y: 430 },
+            'Buffalo': { x: 1420, y: 320 },
+            'Nashville': { x: 1200, y: 600 },
+            'Atlanta': { x: 1280, y: 680 },
+            'Charlotte': { x: 1400, y: 650 },
+            'Jacksonville': { x: 1400, y: 800 },
+            'Miami': { x: 1500, y: 950 },
+            'Tampa': { x: 1350, y: 880 },
+            'Washington DC': { x: 1500, y: 500 },
+            'Baltimore': { x: 1520, y: 480 },
+            'Philadelphia': { x: 1580, y: 450 },
+            'New York City': { x: 1620, y: 420 },
+            'Boston': { x: 1700, y: 350 },
+            'Syracuse': { x: 1550, y: 350 },
+            'Portland, ME': { x: 1750, y: 300 },
+        };
+
+        const interstates = [
+            { id: 'I-5', color: '#3b82f6', cities: ['San Diego', 'Los Angeles', 'San Francisco', 'Portland', 'Seattle'] },
+            { id: 'I-10', color: '#ef4444', cities: ['Los Angeles', 'Phoenix', 'El Paso', 'San Antonio', 'Houston', 'New Orleans', 'Jacksonville'] },
+            { id: 'I-15', color: '#22c55e', cities: ['San Diego', 'Las Vegas', 'Salt Lake City'] },
+            { id: 'I-20', color: '#f97316', cities: ['El Paso', 'Dallas', 'Memphis', 'Atlanta'] },
+            { id: 'I-25', color: '#a855f7', cities: ['El Paso', 'Albuquerque', 'Denver', 'Cheyenne'] },
+            { id: 'I-35', color: '#ec4899', cities: ['San Antonio', 'Dallas', 'Oklahoma City', 'Kansas City', 'Omaha', 'Minneapolis'] },
+            { id: 'I-40', color: '#f59e0b', cities: ['Los Angeles', 'Albuquerque', 'Oklahoma City', 'Memphis', 'Nashville', 'Charlotte'] },
+            { id: 'I-55', color: '#65a30d', cities: ['New Orleans', 'Memphis', 'St. Louis', 'Chicago'] },
+            { id: 'I-65', color: '#0ea5e9', cities: ['New Orleans', 'Nashville', 'Indianapolis', 'Chicago'] },
+            { id: 'I-70', color: '#d946ef', cities: ['Denver', 'Kansas City', 'St. Louis', 'Indianapolis', 'Pittsburgh', 'Baltimore'] },
+            { id: 'I-75', color: '#14b8a6', cities: ['Miami', 'Tampa', 'Atlanta', 'Nashville', 'Indianapolis', 'Detroit'] },
+            { id: 'I-80', color: '#6366f1', cities: ['San Francisco', 'Salt Lake City', 'Cheyenne', 'Omaha', 'Chicago', 'Cleveland', 'New York City'] },
+            { id: 'I-90', color: '#84cc16', cities: ['Seattle', 'Billings', 'Fargo', 'Minneapolis', 'Chicago', 'Cleveland', 'Buffalo', 'Syracuse', 'Boston'] },
+            { id: 'I-94', color: '#facc15', cities: ['Billings', 'Fargo', 'Minneapolis', 'Chicago', 'Detroit'] },
+            { id: 'I-95', color: '#e11d48', cities: ['Miami', 'Jacksonville', 'Charlotte', 'Washington DC', 'Baltimore', 'Philadelphia', 'New York City', 'Boston', 'Portland, ME'] },
+        ];
+
+        // --- SVG & MAP SETUP ---
+        const svg = document.getElementById('map-svg');
+        const tooltip = document.getElementById('tooltip');
+        const ns = 'http://www.w3.org/2000/svg';
+        const mapContainer = document.getElementById('map-container');
+        
+        let scale = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let startPanX, startPanY;
+
+        function applyTransform() {
+            svg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+        
+        // --- DRAWING FUNCTIONS ---
+        function drawMap() {
+            svg.innerHTML = ''; // Clear previous map
+            const linesGroup = document.createElementNS(ns, 'g');
+            const stationsGroup = document.createElementNS(ns, 'g');
+            const labelsGroup = document.createElementNS(ns, 'g');
+            svg.appendChild(linesGroup);
+            svg.appendChild(stationsGroup);
+            svg.appendChild(labelsGroup);
+
+            // Draw interstate lines
+            interstates.forEach(route => {
+                let pathData = '';
+                for (let i = 0; i < route.cities.length; i++) {
+                    const city = cities[route.cities[i]];
+                    if (i === 0) {
+                        pathData += `M ${city.x} ${city.y}`;
+                    } else {
+                        pathData += ` L ${city.x} ${city.y}`;
+                    }
+                }
+                const path = document.createElementNS(ns, 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'interstate-line');
+                path.setAttribute('stroke', route.color);
+                path.dataset.interstateId = route.id;
+                linesGroup.appendChild(path);
+            });
+
+            // Draw city stations and labels
+            Object.keys(cities).forEach(cityName => {
+                const city = cities[cityName];
+                const stationGroup = document.createElementNS(ns, 'g');
+                stationGroup.setAttribute('class', 'city-station');
+                stationGroup.dataset.cityName = cityName;
+
+                const ring = document.createElementNS(ns, 'circle');
+                ring.setAttribute('cx', city.x);
+                ring.setAttribute('cy', city.y);
+                ring.setAttribute('r', 8);
+                ring.setAttribute('class', 'station-ring');
+                ring.setAttribute('stroke', '#f3f4f6'); // gray-100
+
+                const dot = document.createElementNS(ns, 'circle');
+                dot.setAttribute('cx', city.x);
+                dot.setAttribute('cy', city.y);
+                dot.setAttribute('r', 4);
+                dot.setAttribute('fill', '#f3f4f6'); // gray-100
+                dot.setAttribute('class', 'station-dot');
+
+                stationGroup.appendChild(ring);
+                stationGroup.appendChild(dot);
+                stationsGroup.appendChild(stationGroup);
+
+                const label = document.createElementNS(ns, 'text');
+                label.setAttribute('x', city.x);
+                label.setAttribute('y', city.y - 15);
+                label.setAttribute('class', 'city-label');
+                label.textContent = cityName;
+                labelsGroup.appendChild(label);
+            });
+        }
+        
+        // --- EVENT HANDLERS ---
+        function handleZoom(e) {
+            e.preventDefault();
+            const zoomIntensity = 0.1;
+            const dir = e.deltaY < 0 ? 1 : -1;
+            const newScale = Math.max(0.5, Math.min(3, scale + dir * zoomIntensity));
+
+            const rect = svg.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+
+            scale = newScale;
+            applyTransform();
+        }
+        
+        function startPan(e) {
+            e.preventDefault();
+            isPanning = true;
+            mapContainer.style.cursor = 'grabbing';
+            startPanX = e.clientX - panX;
+            startPanY = e.clientY - panY;
+        }
+
+        function doPan(e) {
+            if (!isPanning) return;
+            e.preventDefault();
+            panX = e.clientX - startPanX;
+            panY = e.clientY - startPanY;
+            applyTransform();
+        }
+        
+        function endPan() {
+            isPanning = false;
+            mapContainer.style.cursor = 'grab';
+        }
+
+        function showTooltip(e) {
+            const target = e.target;
+            let content = '';
+            
+            if (target.classList.contains('city-station') || target.parentElement.classList.contains('city-station')) {
+                const station = target.closest('.city-station');
+                const cityName = station.dataset.cityName;
+                const cityRoutes = interstates.filter(r => r.cities.includes(cityName)).map(r => r.id);
+                content = `<strong>${cityName}</strong><br>Routes: ${cityRoutes.join(', ')}`;
+            } else if (target.classList.contains('interstate-line')) {
+                content = `<strong>${target.dataset.interstateId}</strong>`;
+            }
+
+            if (content) {
+                tooltip.innerHTML = content;
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${e.clientX + 15}px`;
+                tooltip.style.top = `${e.clientY + 15}px`;
+            }
+        }
+
+        function hideTooltip() {
+            tooltip.style.display = 'none';
+        }
+        
+        function moveTooltip(e) {
+            if (tooltip.style.display === 'block') {
+                tooltip.style.left = `${e.clientX + 15}px`;
+                tooltip.style.top = `${e.clientY + 15}px`;
+            }
+        }
+
+        // --- CONTROL BUTTONS ---
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            scale = Math.min(3, scale * 1.2);
+            applyTransform();
+        });
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            scale = Math.max(0.5, scale / 1.2);
+            applyTransform();
+        });
+        document.getElementById('reset-view').addEventListener('click', () => {
+            scale = 1.0;
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        });
+
+        // --- INITIALIZATION ---
+        drawMap();
+        
+        // Add event listeners
+        mapContainer.addEventListener('wheel', handleZoom);
+        mapContainer.addEventListener('mousedown', startPan);
+        mapContainer.addEventListener('mousemove', doPan);
+        mapContainer.addEventListener('mouseup', endPan);
+        mapContainer.addEventListener('mouseleave', endPan);
+        
+        svg.addEventListener('mouseover', showTooltip);
+        svg.addEventListener('mouseout', hideTooltip);
+        svg.addEventListener('mousemove', moveTooltip);
+    });
+    </script>
+</body>
+</html>
