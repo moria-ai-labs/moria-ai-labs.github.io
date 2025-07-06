@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Escucha en Español</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .feedback-correct {
+            animation: feedback-correct 0.5s ease-in-out;
+        }
+        .feedback-incorrect {
+            animation: feedback-incorrect 0.5s ease-in-out;
+        }
+        @keyframes feedback-correct {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        @keyframes feedback-incorrect {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8">
+        <div id="app-container">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">Prueba de Escucha en Español</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-2">Sube un archivo CSV con palabras en español para comenzar.</p>
+            </div>
+
+            <!-- File Upload Section -->
+            <div id="file-upload-section" class="text-center">
+                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8">
+                    <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        dark:file:bg-indigo-900/50 dark:file:text-indigo-300
+                        hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900
+                        cursor-pointer"/>
+                    <p id="file-name" class="mt-4 text-sm text-gray-500 dark:text-gray-400">Ningún archivo seleccionado.</p>
+                </div>
+                 <div id="voice-selector-container" class="mt-4 hidden">
+                    <label for="voice-selector" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar Voz en Español:</label>
+                    <select id="voice-selector" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                </div>
+            </div>
+
+            <!-- Quiz Section -->
+            <div id="quiz-section" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                     <div class="text-lg">
+                        <span class="font-semibold">Puntaje:</span>
+                        <span id="score" class="font-bold text-indigo-500">0</span> / <span id="total-attempts" class="font-bold text-gray-500">0</span>
+                    </div>
+                    <button id="reset-button" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Reiniciar</button>
+                </div>
+
+                <div class="text-center mb-8">
+                    <button id="play-word-button" class="px-8 py-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
+                        <svg class="w-8 h-8 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.55 5.55A1 1 0 0116 6.5v11a1 1 0 01-1.45.89l-9.55-5.5a1 1 0 010-1.78l9.55-5.5a1 1 0 01.95-.11zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="ml-2 align-middle text-xl">Reproducir de Nuevo</span>
+                    </button>
+                </div>
+
+                <div id="options-container" class="grid grid-cols-1 gap-4">
+                    <!-- Options will be dynamically inserted here -->
+                </div>
+
+                <div id="feedback-container" class="mt-6 text-center h-8">
+                    <!-- Feedback message will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileUploadSection = document.getElementById('file-upload-section');
+        const csvFileInput = document.getElementById('csv-file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const quizSection = document.getElementById('quiz-section');
+        const playWordButton = document.getElementById('play-word-button');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackContainer = document.getElementById('feedback-container');
+        const scoreDisplay = document.getElementById('score');
+        const totalAttemptsDisplay = document.getElementById('total-attempts');
+        const resetButton = document.getElementById('reset-button');
+        const voiceSelectorContainer = document.getElementById('voice-selector-container');
+        const voiceSelector = document.getElementById('voice-selector');
+
+        // App State
+        let words = [];
+        let currentWord = '';
+        let score = 0;
+        let totalAttempts = 0;
+        let isFirstAttemptForWord = true;
+        let speech = new SpeechSynthesisUtterance();
+        let spanishVoices = [];
+        let audioCtx;
+
+        // --- Sound Generation ---
+        function playCorrectSoundFanfare() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            const now = audioCtx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            let startTime = now;
+
+            notes.forEach((note, index) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(note, startTime);
+                
+                gainNode.gain.setValueAtTime(0.2, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.2);
+                
+                startTime += 0.1; // Stagger the start time for the next note
+            });
+        }
+
+        // --- Voice Synthesis Setup ---
+        function populateVoiceList() {
+            if(typeof speechSynthesis === 'undefined') {
+                console.error("Speech Synthesis not supported.");
+                voiceSelectorContainer.innerHTML = "<p class='text-red-500'>Lo sentimos, tu navegador no soporta la síntesis de voz.</p>";
+                voiceSelectorContainer.classList.remove('hidden');
+                return;
+            }
+            
+            setTimeout(() => {
+                spanishVoices = speechSynthesis.getVoices().filter(voice => voice.lang.startsWith('es-'));
+                
+                if (spanishVoices.length > 0) {
+                    voiceSelector.innerHTML = '';
+                    spanishVoices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        option.setAttribute('data-lang', voice.lang);
+                        option.setAttribute('data-name', voice.name);
+                        voiceSelector.appendChild(option);
+                    });
+                    voiceSelectorContainer.classList.remove('hidden');
+                    speech.voice = spanishVoices[0];
+                } else {
+                     voiceSelectorContainer.innerHTML = "<p class='text-yellow-500'>No se encontró una voz en español en tu sistema. Se usará la voz predeterminada.</p>";
+                     voiceSelectorContainer.classList.remove('hidden');
+                }
+            }, 100);
+        }
+
+        populateVoiceList();
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+        
+        voiceSelector.addEventListener('change', () => {
+            const selectedVoiceName = voiceSelector.selectedOptions[0].getAttribute('data-name');
+            speech.voice = spanishVoices.find(voice => voice.name === selectedVoiceName);
+        });
+
+        // --- File Handling ---
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                fileNameDisplay.textContent = 'Ningún archivo seleccionado.';
+                return;
+            }
+            fileNameDisplay.textContent = `Archivo: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                words = text.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
+                
+                if (words.length < 3) {
+                    alert('El archivo CSV debe contener al menos 3 palabras para generar opciones.');
+                    return;
+                }
+                
+                fileUploadSection.classList.add('hidden');
+                quizSection.classList.remove('hidden');
+                startNewRound();
+            };
+            reader.readAsText(file);
+        });
+
+        // --- Quiz Logic ---
+        function startNewRound() {
+            feedbackContainer.innerHTML = '';
+            optionsContainer.innerHTML = '';
+            playWordButton.disabled = false;
+            isFirstAttemptForWord = true;
+
+            currentWord = words[Math.floor(Math.random() * words.length)];
+            const options = generateOptions(currentWord);
+
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('w-full', 'p-4', 'text-lg', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-lg', 'hover:bg-gray-100', 'dark:hover:bg-gray-700', 'transition-colors');
+                button.onclick = () => checkAnswer(option, button);
+                optionsContainer.appendChild(button);
+            });
+            
+            setTimeout(() => {
+                speech.text = currentWord;
+                window.speechSynthesis.speak(speech);
+            }, 300);
+        }
+
+        function generateOptions(correctWord) {
+            let options = [correctWord];
+            let distractors = words.filter(w => w !== correctWord);
+
+            while (options.length < 3 && distractors.length > 0) {
+                const randomIndex = Math.floor(Math.random() * distractors.length);
+                const distractor = distractors.splice(randomIndex, 1)[0];
+                options.push(distractor);
+            }
+            
+            return options.sort(() => Math.random() - 0.5);
+        }
+
+        function checkAnswer(selectedWord, button) {
+            if (isFirstAttemptForWord) {
+                totalAttempts++;
+                isFirstAttemptForWord = false;
+            }
+
+            let isCorrect = selectedWord === currentWord;
+
+            if (isCorrect) {
+                playCorrectSoundFanfare(); // Play the celebratory fanfare!
+                score++;
+                feedbackContainer.innerHTML = `<p class="text-green-500 font-bold text-xl">¡Correcto!</p>`;
+                
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
+
+                button.classList.add('bg-green-500', 'text-white', 'border-green-500', 'feedback-correct');
+                button.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+                updateScore();
+                
+                setTimeout(() => {
+                    startNewRound();
+                }, 1200);
+
+            } else {
+                feedbackContainer.innerHTML = `<p class="text-red-500 font-bold text-xl">Inténtalo de nuevo</p>`;
+                button.disabled = true;
+                button.classList.add('bg-red-500', 'text-white', 'border-red-500', 'feedback-incorrect', 'cursor-not-allowed');
+                button.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+                updateScore();
+            }
+        }
+
+        function updateScore() {
+            scoreDisplay.textContent = score;
+            totalAttemptsDisplay.textContent = totalAttempts;
+        }
+
+        // --- Event Listeners ---
+        playWordButton.addEventListener('click', () => {
+            speech.text = currentWord;
+            window.speechSynthesis.speak(speech);
+        });
+        
+        resetButton.addEventListener('click', () => {
+            words = [];
+            currentWord = '';
+            score = 0;
+            totalAttempts = 0;
+            updateScore();
+            
+            quizSection.classList.add('hidden');
+            fileUploadSection.classList.remove('hidden');
+            csvFileInput.value = '';
+            fileNameDisplay.textContent = 'Ningún archivo seleccionado.';
+            feedbackContainer.innerHTML = '';
+            optionsContainer.innerHTML = '';
+        });
+
+    </script>
+</body>
+</html>
