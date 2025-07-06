@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector de Frases en Español</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom focus ring for accessibility and style */
+        .custom-focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-2xl mx-auto p-6 md:p-8">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="p-6 md:p-8">
+                <!-- Header Section -->
+                <div class="text-center">
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Lector de Español</h1>
+                    <p class="mt-2 text-gray-500">Escribe una frase en español y la leeré para ti.</p>
+                </div>
+
+                <!-- Text Area for Input -->
+                <div class="mt-8">
+                    <label for="text-to-read" class="sr-only">Texto para leer</label>
+                    <textarea id="text-to-read" rows="6" class="w-full p-4 border border-gray-300 rounded-lg text-lg text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out custom-focus-ring" placeholder="Escribe o pega tu texto aquí...">Hola, ¿cómo estás? Espero que tengas un buen día.</textarea>
+                </div>
+
+                <!-- Action Button -->
+                <div class="mt-6 text-center">
+                    <button id="read-aloud-btn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out custom-focus-ring">
+                        <svg class="inline-block w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.858 5.858a3 3 0 014.243 0L12 7.757l1.9-1.9a3 3 0 014.242 0 3 3 0 010 4.242l-1.9 1.9-1.414 1.414-4.243-4.243-1.9-1.9a3 3 0 010-4.243z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M19 12a9 9 0 01-9 9 9 9 0 01-9-9 9 9 0 019-9 9 9 0 019 9z"></path></svg>
+                        Leer en voz alta
+                    </button>
+                </div>
+                
+                <!-- Status Message -->
+                <div id="status-message" class="text-center mt-4 text-gray-500 h-5"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const readAloudBtn = document.getElementById('read-aloud-btn');
+            const textToRead = document.getElementById('text-to-read');
+            const statusMessage = document.getElementById('status-message');
+            let spanishVoice = null;
+
+            // The Web Speech API can sometimes take a moment to load voices.
+            // This function tries to find and set a Spanish female voice.
+            function loadVoices() {
+                const voices = window.speechSynthesis.getVoices();
+                
+                // Filter for voices that are for Spanish
+                const spanishVoices = voices.filter(voice => voice.lang.startsWith('es-'));
+
+                if (spanishVoices.length === 0) {
+                    console.warn("No Spanish voices found. The browser's default will be used.");
+                    return;
+                }
+
+                // Try to find a female voice by looking for keywords in the voice's name.
+                // Common identifiers include 'Female', 'Mujer', 'Femenino'.
+                let femaleVoice = spanishVoices.find(voice => /female|mujer|femenino/i.test(voice.name));
+                
+                if (femaleVoice) {
+                    spanishVoice = femaleVoice;
+                } else {
+                    // If no explicitly female voice is found, fall back to the first available Spanish voice.
+                    console.warn("No specific female Spanish voice found. Falling back to the first available Spanish voice.");
+                    spanishVoice = spanishVoices[0];
+                }
+            }
+
+            // Load voices when they are ready
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            // Also call it once initially in case the voices are already loaded
+            loadVoices();
+
+            readAloudBtn.addEventListener('click', () => {
+                const text = textToRead.value.trim();
+
+                if (text === '') {
+                    statusMessage.textContent = 'Por favor, introduce algún texto.';
+                    return;
+                }
+
+                // Cancel any previous speech to prevent overlap
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Set the language to Spanish for proper pronunciation
+                utterance.lang = 'es-ES';
+
+                // If a specific Spanish voice was found, use it for higher quality
+                if (spanishVoice) {
+                    utterance.voice = spanishVoice;
+                } else {
+                    console.warn('No specific Spanish voice found. Using browser default.');
+                }
+                
+                // Optional: Adjust pitch and rate for a more natural feel
+                utterance.pitch = 1; // Range from 0 to 2
+                utterance.rate = 0.9; // Range from 0.1 to 10
+
+                utterance.onstart = () => {
+                    statusMessage.textContent = 'Leyendo...';
+                    readAloudBtn.disabled = true;
+                    readAloudBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                };
+
+                utterance.onend = () => {
+                    statusMessage.textContent = '';
+                    readAloudBtn.disabled = false;
+                    readAloudBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('SpeechSynthesisUtterance.onerror', event);
+                    statusMessage.textContent = 'Ocurrió un error al leer.';
+                    readAloudBtn.disabled = false;
+                    readAloudBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+
+                window.speechSynthesis.speak(utterance);
+            });
+        });
+    </script>
+
+</body>
+</html>
