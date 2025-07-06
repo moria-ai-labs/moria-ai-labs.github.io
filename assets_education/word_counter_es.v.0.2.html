@@ -62,6 +62,8 @@
 
     <!-- Confetti library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <!-- Tone.js for sound -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -75,7 +77,7 @@
             const fileInput = document.getElementById('file-input');
             const readAloudBtn = document.getElementById('read-aloud-btn');
 
-            // --- Vocabulary (change to let to allow modification) ---
+            // --- Vocabulary ---
             let vocabulary = [
                 "FELIZ", "SOL", "FLOR", "GUITARRA", "OCEANO",
                 "PYTHON", "GEMINI", "BRILLO", "MAGIA", "EXPLORAR",
@@ -84,85 +86,88 @@
 
             let currentWord = '';
             let balloons = [];
-            let spanishVoice = null; // Variable to hold the selected voice
+            let spanishVoice = null;
+            let audioStarted = false;
+
+            // --- Audio Synthesis ---
+
+            // Create a synth for the success sound
+            const synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: 'fatsawtooth' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 }
+            }).toDestination();
+
+            /**
+             * Plays a celebratory sound effect.
+             */
+            function playSuccessSound() {
+                if (!audioStarted) return;
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+            }
+
+            /**
+             * Initializes the audio context on the first user interaction.
+             * This is required by modern browsers to play audio.
+             */
+            function initAudio() {
+                if (!audioStarted) {
+                    Tone.start();
+                    audioStarted = true;
+                    console.log('Audio context started.');
+                    // Remove the event listener after it has run once
+                    document.body.removeEventListener('click', initAudio);
+                    document.body.removeEventListener('keydown', initAudio);
+                }
+            }
+
 
             // --- Speech Synthesis ---
-            
-            /**
-             * Finds and sets the best available Spanish female voice.
-             * This is often asynchronous, so we listen for the 'voiceschanged' event.
-             */
             function setupSpeechSynthesis() {
                 function findAndSetVoice() {
                     const voices = window.speechSynthesis.getVoices();
-                    // Priority for voices that sound like Google's or Apple's
                     const voicePriority = [
-                        // Apple voices
-                        { name: 'Mónica', lang: 'es-ES' },
-                        { name: 'Paulina', lang: 'es-MX' },
-                        // Google voices
-                        { name: 'Google español de Estados Unidos', lang: 'es-US' },
-                        { name: 'Google español', lang: 'es-ES' },
-                        // Microsoft voices
+                        { name: 'Mónica', lang: 'es-ES' }, { name: 'Paulina', lang: 'es-MX' },
+                        { name: 'Google español de Estados Unidos', lang: 'es-US' }, { name: 'Google español', lang: 'es-ES' },
                         { name: 'Microsoft Helena - Spanish (Spain)', lang: 'es-ES' }
                     ];
-
                     for (const priority of voicePriority) {
                         const foundVoice = voices.find(voice => voice.name === priority.name && voice.lang === priority.lang);
-                        if (foundVoice) {
-                            spanishVoice = foundVoice;
-                            return; // Found a high-priority voice
-                        }
+                        if (foundVoice) { spanishVoice = foundVoice; return; }
                     }
-
-                    // Fallback: find the first available non-local Spanish female voice
                     spanishVoice = voices.find(voice => voice.lang.startsWith('es-') && !voice.localService && voice.name.toLowerCase().includes('female')) ||
                                    voices.find(voice => voice.lang.startsWith('es-') && !voice.localService) ||
-                                   voices.find(voice => voice.lang.startsWith('es-')); // Last resort, any Spanish voice
+                                   voices.find(voice => voice.lang.startsWith('es-'));
                 }
 
                 if ('speechSynthesis' in window) {
-                    // The voices list is loaded asynchronously.
-                    findAndSetVoice(); // Try immediately
+                    findAndSetVoice();
                     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-                        window.speechSynthesis.onvoiceschanged = findAndSetVoice; // And update when the list changes
+                        window.speechSynthesis.onvoiceschanged = findAndSetVoice;
                     }
                 } else {
                      console.error('Web Speech API is not supported in this browser.');
-                    // Disable the button if not supported
                     readAloudBtn.disabled = true;
                     readAloudBtn.title = 'Lectura de voz no soportada';
                     readAloudBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 }
             }
             
-            /**
-             * Reads the given text aloud using the Web Speech API.
-             * @param {string} text - The text to speak.
-             */
             function readAloud(text) {
                 if ('speechSynthesis' in window && text) {
                     window.speechSynthesis.cancel();
-                    
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'es-ES';
                     utterance.rate = 0.9;
-                    
-                    // Use the specially selected voice if available
                     if (spanishVoice) {
                         utterance.voice = spanishVoice;
-                        utterance.lang = spanishVoice.lang; // Use the language of the selected voice
+                        utterance.lang = spanishVoice.lang;
                     }
-                    
                     window.speechSynthesis.speak(utterance);
                 }
             }
 
             // --- Game Logic ---
-
-            /**
-             * Selects a new random word from the vocabulary and displays it.
-             */
             function selectNewWord() {
                 wordInput.value = '';
                 messageEl.textContent = '';
@@ -170,7 +175,7 @@
                 
                 if (vocabulary.length === 0) {
                     wordDisplay.textContent = '-';
-                    currentWord = ''; // Clear current word
+                    currentWord = '';
                     messageEl.textContent = 'Sube un CSV para empezar.';
                     return;
                 }
@@ -178,24 +183,22 @@
                 const randomIndex = Math.floor(Math.random() * vocabulary.length);
                 currentWord = vocabulary[randomIndex];
                 wordDisplay.textContent = currentWord;
-                
-                // Automatically read the new word aloud
                 readAloud(currentWord);
             }
 
-            /**
-             * Handles the user's input and checks for a match.
-             * @param {Event} e - The input event.
-             */
             function handleInput(e) {
-                if (!currentWord) return; // Don't check if no word is set
+                if (!currentWord) return;
                 const typedWord = e.target.value.toUpperCase();
 
                 if (typedWord === currentWord) {
                     messageEl.textContent = '¡Correcto! 🎉';
                     messageEl.classList.remove('text-red-500');
                     messageEl.classList.add('text-green-500');
+                    
+                    // Trigger all celebrations
                     triggerCelebration();
+                    playSuccessSound();
+
                     setTimeout(selectNewWord, 2000);
                 } else {
                     messageEl.textContent = 'Sigue intentando...';
@@ -205,11 +208,6 @@
             }
             
             // --- File Handling Logic ---
-            
-            /**
-             * Processes the uploaded CSV file.
-             * @param {File} file - The file object from the input or drop event.
-             */
             function processFile(file) {
                 if (!file || (file.type !== 'text/csv' && !file.name.endsWith('.csv'))) {
                     messageEl.textContent = 'Por favor, sube un archivo CSV.';
@@ -220,18 +218,16 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const text = e.target.result;
-                    // Split by new lines, then by commas, flatten, trim, uppercase, and filter empty words.
                     const newWords = text.split(/\r?\n/)
                                        .flatMap(line => line.split(','))
                                        .map(word => word.trim().toUpperCase())
                                        .filter(word => word.length > 0);
 
                     if (newWords.length > 0) {
-                        vocabulary = newWords; // Replace the vocabulary
+                        vocabulary = newWords;
                         messageEl.textContent = '¡Vocabulario actualizado!';
                         messageEl.classList.remove('text-red-500');
                         messageEl.classList.add('text-blue-500');
-                        // Start game with new words after a delay
                         setTimeout(() => {
                             selectNewWord();
                             messageEl.classList.remove('text-blue-500');
@@ -254,36 +250,21 @@
 
 
             // --- Event Listeners ---
+            document.body.addEventListener('click', initAudio, { once: true });
+            document.body.addEventListener('keydown', initAudio, { once: true });
+            
             wordInput.addEventListener('input', handleInput);
             window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
             readAloudBtn.addEventListener('click', () => readAloud(currentWord));
 
-            // Event listener for clicking the drop zone
             dropZone.addEventListener('click', () => fileInput.click());
-
-            // Event listener for file selection via file dialog
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length) {
-                    processFile(e.target.files[0]);
-                }
-            });
-
-            // Event listeners for drag and drop
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault(); // Necessary to allow drop
-                dropZone.classList.add('border-indigo-500', 'bg-gray-50', 'dark:bg-gray-700');
-            });
-
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('border-indigo-500', 'bg-gray-50', 'dark:bg-gray-700');
-            });
-
+            fileInput.addEventListener('change', (e) => { if (e.target.files.length) { processFile(e.target.files[0]); } });
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-gray-50', 'dark:bg-gray-700'); });
+            dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500', 'bg-gray-50', 'dark:bg-gray-700'); });
             dropZone.addEventListener('drop', (e) => {
-                e.preventDefault(); // Prevent file from being opened in the browser
+                e.preventDefault();
                 dropZone.classList.remove('border-indigo-500', 'bg-gray-50', 'dark:bg-gray-700');
-                if (e.dataTransfer.files.length) {
-                    processFile(e.dataTransfer.files[0]);
-                }
+                if (e.dataTransfer.files.length) { processFile(e.dataTransfer.files[0]); }
             });
 
             // --- Initial Setup ---
