@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge-Notched Card Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Set up the 3D space */
+        #visualization {
+            perspective: 1000px;
+        }
+
+        /* Base card styles */
+        .card {
+            width: 200px;
+            height: 120px;
+            background-color: #f3f0e9;
+            border: 1px solid #dcdacb;
+            border-radius: 8px;
+            position: absolute;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045);
+            transform-origin: top center;
+            padding: 15px 8px 8px 8px; /* Added more top padding for holes */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Reference card specific style */
+        .reference-card {
+            background-color: #fefce8; /* yellow-50 */
+            border-style: dashed;
+        }
+        
+        /* Style for cards that ARE selected */
+        .card.selected {
+            transform: translateY(220px);
+        }
+
+
+        /* Styles for the holes and notches */
+        .hole-row {
+            display: flex;
+            justify-content: space-around;
+            position: absolute;
+            width: 100%;
+            top: 5px; /* Moved down to be inside the card */
+            left: 0;
+        }
+        .hole {
+            width: 10px;
+            height: 10px;
+            border: 1px solid #8c867a;
+            border-radius: 50%;
+            position: relative;
+            background-color: #ffffff; /* Make hole appear punched */
+            box-shadow: inset 0 1px 1px rgba(0,0,0,0.1);
+        }
+        
+        /* New notch style */
+        .notch {
+            --notch-color: #8c867a; /* Default border color, can be overridden by JS */
+            width: 10px;
+            height: 5px; /* This is the visible semi-circle part */
+            border: 1px solid var(--notch-color);
+            border-top: none; /* Creates the U-shape */
+            border-radius: 0 0 5px 5px; /* Rounds the bottom corners */
+            position: relative;
+            top: 5px; /* Aligns the notch with the bottom half of the hole's space */
+            background-color: transparent;
+        }
+
+        /* This pseudo-element is the square part that cuts up to the edge */
+        .notch::before {
+            content: '';
+            position: absolute;
+            bottom: 4px; /* Start from the bottom of the semi-circle's border */
+            left: -1px; /* Align with the parent's border */
+            width: 10px;
+            height: 11px; /* Height needed to go over the card edge */
+            background-color: #ffffff; /* Color of the cutout, same as hole */
+            border-left: 1px solid var(--notch-color);
+            border-right: 1px solid var(--notch-color);
+        }
+
+
+        /* Style for the selection pin */
+        .pin {
+            width: 20px;
+            height: 20px;
+            background-color: rgba(107, 114, 128, 0.8); /* gray-500 with opacity */
+            border: 2px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 0; /* Will be set by JS */
+            left: 0; /* Will be set by JS */
+            transition: all 0.5s ease-in-out;
+            z-index: 20; /* Keep pin on top of everything */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%) scale(0); /* Start scaled down */
+        }
+        .pin.visible {
+             transform: translate(-50%, -50%) scale(1); /* Scale up to be visible */
+        }
+        
+        /* Legend Styles */
+        #legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .legend-color-swatch {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            border: 1px solid #ccc;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Edge-Notched Card Simulator</h1>
+            <p class="text-gray-600 mt-2">Visualize how physical data retrieval worked. Select a category, and watch the selected cards drop.</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap justify-center items-center gap-4 mb-8 p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2">
+                <label for="category" class="font-medium text-gray-700">Select Criteria:</label>
+                <select id="category" class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="none" selected>-- Select a Hole --</option>
+                    <option value="author_tolkien">Author: Tolkien</option>
+                    <option value="author_asimov">Author: Asimov</option>
+                    <option value="author_herbert">Author: Herbert</option>
+                    <option value="cat_fiction">Category: Fiction</option>
+                    <option value="cat_nonfiction">Category: Non-Fiction</option>
+                </select>
+            </div>
+            <button id="sortBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700 transition duration-300">Place Pin & Filter</button>
+            <button id="resetBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition duration-300">Reset</button>
+        </div>
+
+        <!-- Visualization Area -->
+        <div id="visualization" class="relative w-full h-[550px] flex justify-center items-start">
+            <!-- Cards will be injected here by JS -->
+            <!-- Pin will be injected here by JS -->
+        </div>
+        
+        <!-- Message Box -->
+        <div id="messageBox" class="text-center mt-4 text-lg font-medium text-indigo-700 h-8"></div>
+        
+        <!-- Legend -->
+        <div id="legend"></div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const visualization = document.getElementById('visualization');
+            const categorySelect = document.getElementById('category');
+            const sortBtn = document.getElementById('sortBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const messageBox = document.getElementById('messageBox');
+            const legend = document.getElementById('legend');
+
+            // --- Data ---
+            const holeConfig = {
+                1: { key: 'author_tolkien', label: 'Tolkien', position: '20%', color: '#34d399' }, // green-400
+                2: { key: 'author_asimov', label: 'Asimov', position: '40%', color: '#60a5fa' }, // blue-400
+                3: { key: 'author_herbert', label: 'Herbert', position: '60%', color: '#c084fc' }, // purple-400
+                4: { key: 'cat_fiction', label: 'Fiction', position: '80%', color: '#8c867a' }, // Default color
+            };
+
+            const books = [
+                { title: 'The Hobbit', author: 'Tolkien', category: 'Fiction', notched: ['author_tolkien', 'cat_fiction'] },
+                { title: 'The Lord of the Rings', author: 'Tolkien', category: 'Fiction', notched: ['author_tolkien', 'cat_fiction'] },
+                { title: 'I, Robot', author: 'Asimov', category: 'Fiction', notched: ['author_asimov', 'cat_fiction'] },
+                { title: 'Foundation', author: 'Asimov', category: 'Fiction', notched: ['author_asimov', 'cat_fiction'] },
+                { title: 'Dune', author: 'Herbert', category: 'Fiction', notched: ['author_herbert', 'cat_fiction'] },
+                { title: 'A Brief History of Time', author: 'Hawking', category: 'Non-Fiction', notched: ['cat_nonfiction'] },
+                { title: 'Sapiens', author: 'Harari', category: 'Non-Fiction', notched: ['cat_nonfiction'] },
+                { title: 'The Silmarillion', author: 'Tolkien', category: 'Fiction', notched: ['author_tolkien', 'cat_fiction'] },
+            ];
+
+            let isAnimating = false;
+
+            // --- Functions ---
+            function createCards() {
+                visualization.innerHTML = ''; 
+                const baseTop = 150; // Base vertical position for the bottom card
+                const offset = 6; // Increased offset for better visibility
+                
+                // 1. Create and add the reference card first (bottom-left)
+                const refCardBottom = document.createElement('div');
+                refCardBottom.className = 'card reference-card';
+                refCardBottom.style.left = `calc(50% - 100px + ${0 * offset}px)`;
+                refCardBottom.style.top = `${baseTop - 0 * offset}px`;
+                refCardBottom.style.zIndex = 1;
+                refCardBottom.innerHTML = `
+                    <div class="hole-row"></div>
+                    <div class="flex-grow flex items-center justify-center text-center text-gray-400 italic">
+                        <div>
+                            <h3 class="font-bold text-sm">[Title]</h3>
+                            <p class="text-xs">[Author]</p>
+                        </div>
+                    </div>
+                    <p class="text-center text-xs font-mono pb-1">[Category]</p>
+                `;
+                const refHoleRowBottom = refCardBottom.querySelector('.hole-row');
+                Object.values(holeConfig).forEach(config => {
+                    const holeEl = document.createElement('div');
+                    holeEl.className = 'hole';
+                    holeEl.style.position = 'absolute';
+                    holeEl.style.left = config.position;
+                    if (config.color) {
+                        holeEl.style.borderColor = config.color;
+                    }
+                    refHoleRowBottom.appendChild(holeEl);
+                });
+                visualization.appendChild(refCardBottom);
+
+                // 2. Create and add the data cards
+                books.forEach((book, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.id = `card-${index}`;
+                    const visualIndex = index + 1;
+                    card.style.left = `calc(50% - 100px + ${visualIndex * offset}px)`;
+                    card.style.top = `${baseTop - visualIndex * offset}px`;
+                    card.style.zIndex = visualIndex + 1;
+                    card.dataset.notched = JSON.stringify(book.notched);
+
+                    card.innerHTML = `
+                        <div class="hole-row"></div>
+                        <div class="flex-grow flex items-center justify-center text-center">
+                            <div>
+                                <h3 class="font-bold text-sm">${book.title}</h3>
+                                <p class="text-xs text-gray-600">${book.author}</p>
+                            </div>
+                        </div>
+                        <p class="text-center text-xs font-mono pb-1">${book.category}</p>
+                    `;
+                    
+                    const holeRow = card.querySelector('.hole-row');
+                    
+                    Object.values(holeConfig).forEach(config => {
+                        const isNotched = book.notched.includes(config.key);
+                        const holeEl = document.createElement('div');
+                        holeEl.className = isNotched ? 'notch' : 'hole';
+                        holeEl.style.position = 'absolute';
+                        holeEl.style.left = config.position;
+                        
+                        // Apply color to hole/notch
+                        if (isNotched) {
+                            if (config.color) {
+                                holeEl.style.setProperty('--notch-color', config.color);
+                            }
+                        } else {
+                            if (config.color) {
+                                holeEl.style.borderColor = config.color;
+                            }
+                        }
+                        
+                        holeRow.appendChild(holeEl);
+                    });
+
+                    visualization.appendChild(card);
+                });
+
+                // 3. Create and add the second reference card (top-right)
+                const refCardTop = document.createElement('div');
+                refCardTop.id = 'ref-card-top'; // Add ID for easy selection
+                refCardTop.className = 'card reference-card';
+                const topVisualIndex = books.length + 1;
+                refCardTop.style.left = `calc(50% - 100px + ${topVisualIndex * offset}px)`;
+                refCardTop.style.top = `${baseTop - topVisualIndex * offset}px`;
+                refCardTop.style.zIndex = topVisualIndex + 1;
+                refCardTop.innerHTML = `
+                    <div class="hole-row"></div>
+                    <div class="flex-grow flex items-center justify-center text-center text-gray-400 italic">
+                        <div>
+                            <h3 class="font-bold text-sm">[Title]</h3>
+                            <p class="text-xs">[Author]</p>
+                        </div>
+                    </div>
+                    <p class="text-center text-xs font-mono pb-1">[Category]</p>
+                `;
+                const refHoleRowTop = refCardTop.querySelector('.hole-row');
+                Object.values(holeConfig).forEach(config => {
+                    const holeEl = document.createElement('div');
+                    holeEl.className = 'hole';
+                    holeEl.style.position = 'absolute';
+                    holeEl.style.left = config.position;
+                    if (config.color) {
+                        holeEl.style.borderColor = config.color;
+                    }
+                    refHoleRowTop.appendChild(holeEl);
+                });
+                visualization.appendChild(refCardTop);
+            }
+            
+            function createLegend() {
+                legend.innerHTML = ''; // Clear existing legend
+                Object.values(holeConfig).forEach(config => {
+                    if (!config.color) return; // Only show items with a color
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    
+                    const swatch = document.createElement('div');
+                    swatch.className = 'legend-color-swatch';
+                    swatch.style.backgroundColor = config.color;
+                    
+                    const label = document.createElement('span');
+                    label.textContent = config.label;
+                    
+                    legendItem.appendChild(swatch);
+                    legendItem.appendChild(label);
+                    legend.appendChild(legendItem);
+                });
+            }
+
+            function sortCards() {
+                if (isAnimating) return;
+                const selectedCategory = categorySelect.value;
+                if (selectedCategory === 'none') {
+                    showMessage("Please select a criteria to sort by.", 'error');
+                    return;
+                }
+                isAnimating = true;
+                sortBtn.disabled = true;
+                resetBtn.disabled = true;
+
+                resetSelection();
+                
+                const selectedConfig = Object.values(holeConfig).find(c => c.key === selectedCategory) || { key: 'cat_nonfiction', position: '80%' };
+
+                // 1. Create and show the pin
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                
+                const targetCard = document.getElementById('ref-card-top');
+                if (targetCard) {
+                    const cardLeft = targetCard.offsetLeft;
+                    const cardTop = targetCard.offsetTop;
+
+                    const positionPercent = parseFloat(selectedConfig.position) / 100;
+                    const cardWidth = 200;
+                    const pixelOffset = cardWidth * positionPercent;
+
+                    const holeRowTop = 5;
+                    const holeCenterY = cardTop + holeRowTop + 5; // +5 for half of hole height
+                    
+                    pin.style.left = `${cardLeft + pixelOffset}px`;
+                    pin.style.top = `${holeCenterY}px`;
+                }
+                
+                visualization.appendChild(pin);
+                
+                showMessage(`Placing pin for '${selectedCategory.replace(/_/g, ": ")}'...`, 'info');
+
+                setTimeout(() => {
+                    pin.classList.add('visible');
+                }, 100);
+
+                // 2. Animate selected cards
+                setTimeout(() => {
+                    // Select only data cards, not the reference card
+                    const cards = document.querySelectorAll('.card:not(.reference-card)');
+                    let selectedCount = 0;
+                    cards.forEach((card, index) => {
+                        const notchedCategories = JSON.parse(card.dataset.notched);
+                        
+                        let isSelected = false;
+                        if (selectedCategory === 'cat_nonfiction') {
+                            isSelected = !notchedCategories.includes('cat_fiction');
+                        } else {
+                            isSelected = notchedCategories.includes(selectedCategory);
+                        }
+
+                        if (isSelected) {
+                           selectedCount++;
+                           card.classList.add('selected');
+                        }
+                    });
+                     showMessage(`${selectedCount} card(s) dropped. The rest are held by the pin.`, 'success');
+                     resetBtn.disabled = false;
+                }, 500); 
+            }
+            
+            function resetSelection() {
+                const existingPin = visualization.querySelector('.pin');
+                if (existingPin) {
+                    existingPin.remove();
+                }
+                document.querySelectorAll('.card.selected').forEach(card => {
+                    card.classList.remove('selected');
+                });
+            }
+
+            function reset() {
+                isAnimating = false;
+                // Re-create cards to ensure proper stacking order on reset
+                createCards();
+                resetSelection();
+                sortBtn.disabled = false;
+                resetBtn.disabled = false;
+                categorySelect.value = 'none';
+                showMessage("Cards have been reset.", 'info');
+            }
+
+            function showMessage(text, type) {
+                messageBox.textContent = text;
+                messageBox.className = 'text-center mt-4 text-lg font-medium text-indigo-700 h-8';
+                if (type === 'error') {
+                    messageBox.classList.add('text-red-600');
+                } else if (type === 'success') {
+                    messageBox.classList.add('text-green-600');
+                } else {
+                    messageBox.classList.add('text-indigo-700');
+                }
+            }
+
+            // --- Event Listeners ---
+            sortBtn.addEventListener('click', sortCards);
+            resetBtn.addEventListener('click', reset);
+
+            // --- Initial Setup ---
+            createCards();
+            createLegend();
+        });
+    </script>
+</body>
+</html>
