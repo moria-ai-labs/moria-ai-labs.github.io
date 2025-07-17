@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Allow vertical scrolling if content is taller than the viewport */
+            overflow-y: auto;
+        }
+        canvas {
+            background-color: #111827; /* A dark gray background for the canvas */
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            /* Canvas display is set to block by default in JS */
+            display: block;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 1rem 2rem; /* Reduced vertical padding */
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .btn:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="w-full min-h-screen p-4 flex flex-col gap-4">
+        <!-- Top Panel: Controls -->
+        <div class="control-panel w-full flex-shrink-0">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex-shrink-0">
+                    <h1 class="text-2xl font-bold text-gray-800">Chaos Game</h1>
+                </div>
+                
+                <div class="flex flex-wrap items-center justify-center flex-grow gap-x-6 gap-y-4">
+                     <!-- Number of Vertices -->
+                    <div class="flex items-center gap-2">
+                        <label for="vertices" class="text-sm font-medium text-gray-700">Vertices</label>
+                        <input type="number" id="vertices" value="3" min="3" max="12" class="w-20 p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <!-- Jump Distance -->
+                    <div class="flex items-center gap-2">
+                        <label for="jump" class="text-sm font-medium text-gray-700">Jump (r)</label>
+                        <input type="range" id="jump" value="0.5" min="0.1" max="0.9" step="0.01" class="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <span id="jump-value" class="text-gray-600 text-sm font-mono w-10 text-center">0.50</span>
+                    </div>
+                    
+                    <!-- Number of Points -->
+                    <div class="flex items-center gap-2">
+                        <label for="points" class="text-sm font-medium text-gray-700">Points</label>
+                        <input type="number" id="points" value="50000" min="1000" max="200000" step="1000" class="w-28 p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <!-- Speed Control -->
+                    <div class="flex items-center gap-2">
+                        <label for="speed" class="text-sm font-medium text-gray-700">Speed</label>
+                        <input type="range" id="speed" value="50" min="1" max="100" class="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <span id="speed-value" class="text-gray-600 text-sm font-mono w-10 text-center">50</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-4">
+                     <button id="startBtn" class="btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">
+                        Start
+                    </button>
+                     <button id="stopBtn" class="btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md" disabled>
+                        Stop
+                    </button>
+                </div>
+            </div>
+             <div id="message-box" class="mt-2 text-center text-sm text-gray-600 h-5"></div>
+        </div>
+
+        <!-- Bottom Panel: Canvas Container -->
+        <div class="w-full">
+            <canvas id="chaosCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const canvas = document.getElementById('chaosCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const verticesInput = document.getElementById('vertices');
+        const jumpInput = document.getElementById('jump');
+        const jumpValueSpan = document.getElementById('jump-value');
+        const pointsInput = document.getElementById('points');
+        const speedInput = document.getElementById('speed');
+        const speedValueSpan = document.getElementById('speed-value');
+        const messageBox = document.getElementById('message-box');
+
+        // --- State Variables ---
+        let animationFrameId = null;
+        let isRunning = false;
+        let pointsDrawn = 0;
+
+        // --- Canvas Setup ---
+        function setupCanvas() {
+            // Make canvas responsive by matching its container's size
+            const container = canvas.parentElement;
+            const dpi = window.devicePixelRatio || 1;
+            
+            // Get the container's available dimensions
+            const rect = container.getBoundingClientRect();
+
+            // Determine the size based on the container's full width.
+            const size = rect.width;
+
+            // Set the canvas drawing buffer size based on the square size and DPI
+            canvas.width = size * dpi;
+            canvas.height = size * dpi; // Force the canvas to be a square
+            
+            // Set the CSS size of the canvas to be a square
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+
+            // Scale the context to ensure drawings are sharp on high-DPI screens
+            ctx.scale(dpi, dpi);
+            
+            // Clear the canvas with the background color
+            // The coordinates here are in the logical size (scaled units)
+            ctx.fillStyle = '#111827';
+            ctx.fillRect(0, 0, size, size);
+        }
+
+        // --- Chaos Game Logic ---
+        function runChaosGame() {
+            // --- 1. Get Parameters ---
+            const numVertices = parseInt(verticesInput.value);
+            const jumpRatio = parseFloat(jumpInput.value); // The 'r' value
+            const numPoints = parseInt(pointsInput.value);
+
+            if (numVertices < 3) {
+                showMessage("Please enter at least 3 vertices.", "error");
+                return;
+            }
+
+            // --- 2. Initial Setup ---
+            setupCanvas();
+            // Use the CSS dimensions for calculations, which are now guaranteed to be square
+            const canvasSize = canvas.clientWidth;
+            const center = { x: canvasSize / 2, y: canvasSize / 2 };
+            const radius = canvasSize * 0.48; // Use slightly more of the canvas
+            const vertices = [];
+
+            // --- 3. Define Polygon Vertices ---
+            for (let i = 0; i < numVertices; i++) {
+                const angle = (i / numVertices) * 2 * Math.PI - Math.PI / 2; // Start from top
+                vertices.push({
+                    x: center.x + radius * Math.cos(angle),
+                    y: center.y + radius * Math.sin(angle)
+                });
+            }
+            
+            // --- 4. Draw Initial Vertices ---
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.8)'; // Yellow for vertices
+            vertices.forEach(v => {
+                ctx.beginPath();
+                ctx.arc(v.x, v.y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // --- 5. Start the Chaos ---
+            let currentPoint = { x: Math.random() * canvasSize, y: Math.random() * canvasSize };
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.7)'; // Cyan
+            pointsDrawn = 0;
+
+            function drawNextPoint() {
+                if (!isRunning || pointsDrawn >= numPoints) {
+                    stopGame();
+                    return;
+                }
+                
+                // The number of points to draw per frame, controlled by the speed slider.
+                const speedValue = parseInt(speedInput.value);
+                // A non-linear mapping for a more responsive feel.
+                const batchSize = Math.floor(Math.pow(speedValue, 2) / 10) + 10;
+                
+                for(let i = 0; i < batchSize && pointsDrawn < numPoints; i++) {
+                    const targetVertex = vertices[Math.floor(Math.random() * numVertices)];
+                    currentPoint = {
+                        x: currentPoint.x + (targetVertex.x - currentPoint.x) * jumpRatio,
+                        y: currentPoint.y + (targetVertex.y - currentPoint.y) * jumpRatio
+                    };
+                    ctx.fillRect(currentPoint.x, currentPoint.y, 1, 1);
+                    pointsDrawn++;
+                }
+                
+                showMessage(`Drawing... ${pointsDrawn.toLocaleString()} / ${numPoints.toLocaleString()} points`);
+                animationFrameId = requestAnimationFrame(drawNextPoint);
+            }
+            
+            drawNextPoint();
+        }
+        
+        // --- Control Functions ---
+        function startGame() {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            [verticesInput, jumpInput, pointsInput, speedInput].forEach(input => input.disabled = true);
+            showMessage("Starting game...");
+            runChaosGame();
+        }
+
+        function stopGame() {
+            if (!isRunning) return;
+            isRunning = false;
+            if(animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            [verticesInput, jumpInput, pointsInput, speedInput].forEach(input => input.disabled = false);
+            
+            const totalPoints = parseInt(pointsInput.value);
+            if (pointsDrawn >= totalPoints) {
+                 showMessage(`Finished drawing ${pointsDrawn.toLocaleString()} points.`, "success");
+            } else {
+                 showMessage(`Game stopped at ${pointsDrawn.toLocaleString()} points. Ready to start again.`, "success");
+            }
+        }
+        
+        function showMessage(msg, type = 'info') {
+            messageBox.textContent = msg;
+            messageBox.className = 'mt-2 text-center text-sm h-5'; // Reset classes
+            if (type === 'error') {
+                messageBox.classList.add('text-red-600');
+            } else if (type === 'success') {
+                 messageBox.classList.add('text-green-600');
+            } else {
+                 messageBox.classList.add('text-gray-600');
+            }
+        }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', startGame);
+        stopBtn.addEventListener('click', stopGame);
+        
+        jumpInput.addEventListener('input', (e) => {
+            jumpValueSpan.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        speedInput.addEventListener('input', (e) => {
+            speedValueSpan.textContent = e.target.value;
+        });
+
+        // --- Observers and Initial Setup ---
+        // Use a ResizeObserver to automatically resize the canvas when its container changes size
+        const resizeObserver = new ResizeObserver(entries => {
+             if (!isRunning) {
+                setupCanvas();
+                showMessage("Canvas resized. Ready to start.");
+            }
+        });
+
+        resizeObserver.observe(canvas.parentElement);
+        
+    </script>
+</body>
+</html>
