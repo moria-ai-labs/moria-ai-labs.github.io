@@ -37,6 +37,11 @@
             line-height: 1.5;
             margin: 0;
         }
+        #rotation-info {
+            margin-top: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,6 +51,7 @@
     <div id="info">
         <h1>Runge's Color Sphere</h1>
         <p>A 3D visualization of Philipp Otto Runge's <i>Farbenkugel</i> (color sphere), 1810. Drag to rotate and scroll to zoom. The poles are black and white, with pure hues around the equator.</p>
+        <div id="rotation-info">Rotation: <span id="angle">0</span>°</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -55,6 +61,7 @@
         // --- Basic Setup ---
         let scene, camera, renderer, controls;
         let points;
+        let angleDisplay;
 
         function init() {
             // Scene
@@ -77,6 +84,9 @@
             controls.screenSpacePanning = false;
             controls.minDistance = 5;
             controls.maxDistance = 50;
+            
+            // Get the angle display element
+            angleDisplay = document.getElementById('angle');
 
             // --- Lighting ---
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
@@ -156,6 +166,14 @@
             // Continuously rotate the sphere around its poles (the Y-axis)
             if (points) {
                 points.rotation.y += 0.002;
+
+                // Update the angle display
+                if(angleDisplay) {
+                    // Convert radians to degrees and keep it within 0-360 range
+                    const degrees = (points.rotation.y * 180 / Math.PI) % 360;
+                    // Use Math.abs to avoid negative degrees from the modulo
+                    angleDisplay.textContent = Math.abs(degrees).toFixed(0);
+                }
             }
 
             controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
@@ -180,3 +198,4 @@
     </script>
 </body>
 </html>
+
