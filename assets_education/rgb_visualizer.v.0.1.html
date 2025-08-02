@@ -119,6 +119,40 @@
         let scene, camera, renderer, cube, controls, colorIndicator;
         const CUBE_SIZE = 2; // The size of our 3D cube representation
 
+        /**
+         * Creates a text label as a sprite.
+         * Sprites always face the camera.
+         * @param {string} text The text for the label.
+         * @param {string} color The CSS color of the text.
+         * @param {THREE.Vector3} position The position of the label.
+         * @returns {THREE.Sprite} The created label sprite.
+         */
+        function createAxisLabel(text, color, position) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const fontSize = 120;
+            context.font = `Bold ${fontSize}px Arial`;
+            
+            // Set background to match the panel for better text rendering
+            context.fillStyle = 'rgba(255, 255, 255, 0)'; // Transparent background
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            context.fillStyle = color;
+            context.fillText(text, 10, fontSize - 10);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            
+            // Scale the sprite to an appropriate size in the scene
+            sprite.scale.set(0.5, 0.5, 1);
+            sprite.position.copy(position);
+
+            return sprite;
+        }
+
         function init3D() {
             // 1. Scene
             scene = new THREE.Scene();
@@ -163,19 +197,28 @@
             cube = new THREE.Mesh(geometry, material);
             scene.add(cube);
             
-            // Add a wireframe for better edge visibility
+            // 6. Wireframe for better edge visibility
             const wireframeGeo = new THREE.EdgesGeometry(geometry);
             const wireframeMat = new THREE.LineBasicMaterial({ color: 0xAAAAAA, linewidth: 1 });
             const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
             scene.add(wireframe);
 
-            // 6. Color Indicator
+            // 7. Color Indicator
             const indicatorGeo = new THREE.SphereGeometry(0.08, 32, 32);
             const indicatorMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             colorIndicator = new THREE.Mesh(indicatorGeo, indicatorMat);
             scene.add(colorIndicator);
+            
+            // 8. Axis Labels
+            // Position labels along the positive axes, just outside the cube
+            const labelOffset = 0.3;
+            const halfSize = CUBE_SIZE / 2;
+            const labelR = createAxisLabel('R', '#FF4444', new THREE.Vector3(halfSize + labelOffset, 0, 0));
+            const labelG = createAxisLabel('G', '#44FF44', new THREE.Vector3(0, halfSize + labelOffset, 0));
+            const labelB = createAxisLabel('B', '#4444FF', new THREE.Vector3(0, 0, halfSize + labelOffset));
+            scene.add(labelR, labelG, labelB);
 
-            // 7. Animation Loop
+            // 9. Animation Loop
             animate();
         }
 
@@ -248,3 +291,4 @@
 
 </body>
 </html>
+
